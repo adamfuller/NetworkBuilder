@@ -23,8 +23,8 @@ class Neuron {
   }
 
   double sigmoid(double x) => 1.0 / (1.0 + exp(-x));
-
-  double sigmoidDerivative(double x) => x * (1.0 - x);
+  double sigmoidDerivative(double x) => sigmoid(x) * (1.0 - sigmoid(x));
+  double sigmoidishDerivative(double x) => x * (1.0 - x);
 
   double tanh(double x) => (exp(x) - exp(-x)) / (exp(x) + exp(-x));
   double tanHDerivative(double x) => 1.0 - (x * x);
@@ -45,6 +45,8 @@ class Neuron {
       case NormalizationFunction.leakyRelu:
         return leakyRelu(x);
       case NormalizationFunction.sigmoid:
+        return sigmoid(x);
+      case NormalizationFunction.sigmoidish:
         return sigmoid(x);
       case NormalizationFunction.tanh:
         return tanh(x);
@@ -67,6 +69,8 @@ class Neuron {
         return tanHDerivative(x);
       case NormalizationFunction.softplus:
         return softplusDerivative(x);
+      case NormalizationFunction.sigmoidish:
+        return sigmoidishDerivative(x);
       default:
         return sigmoidDerivative(x);
     }
@@ -108,6 +112,7 @@ class Neuron {
 
 enum NormalizationFunction {
   sigmoid,
+  sigmoidish,
   tanh,
   relu,
   softplus,

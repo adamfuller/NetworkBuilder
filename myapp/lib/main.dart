@@ -98,6 +98,8 @@ class _MainViewState extends State<MainView> {
   Widget _getLearningRateSlider() {
     return Slider(
       value: Layer.learningRate,
+      label: (Layer.learningRate).toStringAsFixed(5),
+      divisions: 3000,
       min: 0.00001,
       max: 0.99999,
       onChanged: (d) {
