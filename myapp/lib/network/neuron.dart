@@ -8,7 +8,7 @@ class Neuron {
   double error;
   List<double> inputs;
   double output;
-  NormalizationFunction normalizationFunction;
+  ActivationFunction normalizationFunction;
 
   Neuron(int inputCount, {this.normalizationFunction}) {
     this.weights = List<double>();
@@ -39,18 +39,18 @@ class Neuron {
   double softplusDerivative(double x) => 1.0 / (1.0 + exp(-x));
 
   double normalize(double x) {
-    switch (Network.normalizationFunction) {
-      case NormalizationFunction.relu:
+    switch (Network.activationFunction) {
+      case ActivationFunction.relu:
         return relu(x);
-      case NormalizationFunction.leakyRelu:
+      case ActivationFunction.leakyRelu:
         return leakyRelu(x);
-      case NormalizationFunction.sigmoid:
+      case ActivationFunction.sigmoid:
         return sigmoid(x);
-      case NormalizationFunction.sigmoidish:
+      case ActivationFunction.sigmoidish:
         return sigmoid(x);
-      case NormalizationFunction.tanh:
+      case ActivationFunction.tanh:
         return tanh(x);
-      case NormalizationFunction.softplus:
+      case ActivationFunction.softplus:
         return softplus(x);
       default:
         return sigmoid(x);
@@ -58,25 +58,25 @@ class Neuron {
   }
 
   double normalizeDerivative(double x) {
-    switch (Network.normalizationFunction) {
-      case NormalizationFunction.relu:
+    switch (Network.activationFunction) {
+      case ActivationFunction.relu:
         return reluDerivative(x);
-      case NormalizationFunction.leakyRelu:
+      case ActivationFunction.leakyRelu:
         return leakyReluDerivative(x);
-      case NormalizationFunction.sigmoid:
+      case ActivationFunction.sigmoid:
         return sigmoidDerivative(x);
-      case NormalizationFunction.tanh:
+      case ActivationFunction.tanh:
         return tanHDerivative(x);
-      case NormalizationFunction.softplus:
+      case ActivationFunction.softplus:
         return softplusDerivative(x);
-      case NormalizationFunction.sigmoidish:
+      case ActivationFunction.sigmoidish:
         return sigmoidishDerivative(x);
       default:
         return sigmoidDerivative(x);
     }
   }
 
-  void changeNormalization(NormalizationFunction n) => this.normalizationFunction = n;
+  void changeNormalization(ActivationFunction n) => this.normalizationFunction = n;
 
   double forwardPropagation(List<double> input) {
     this.inputs = input;
@@ -110,7 +110,7 @@ class Neuron {
   }
 }
 
-enum NormalizationFunction {
+enum ActivationFunction {
   sigmoid,
   sigmoidish,
   tanh,

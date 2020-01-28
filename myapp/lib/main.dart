@@ -178,27 +178,36 @@ class _MainViewState extends State<MainView> {
   }
 
   Widget _getFunctionPicker() {
-    return DropdownButton<NormalizationFunction>(
-      value: Network.normalizationFunction,
-      icon: Icon(Icons.arrow_downward),
-      iconSize: 24,
-      elevation: 16,
-      style: TextStyle(color: Colors.blue),
-      underline: Container(
-        height: 2,
-        color: Colors.blueAccent,
-      ),
-      onChanged: (NormalizationFunction newValue) {
-        setState(() {
-          Network.normalizationFunction = newValue;
-        });
-      },
-      items: NormalizationFunction.values.map<DropdownMenuItem<NormalizationFunction>>((NormalizationFunction value) {
-        return DropdownMenuItem<NormalizationFunction>(
-          value: value,
-          child: Text("${value.toString().split("\.")[1]}"),
-        );
-      }).toList(),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right:8),
+          child: Text("Activation Function:"),
+        ),
+        DropdownButton<ActivationFunction>(
+          value: Network.activationFunction,
+          icon: Icon(Icons.arrow_downward),
+          iconSize: 24,
+          elevation: 16,
+          style: TextStyle(color: Colors.blue),
+          underline: Container(
+            height: 2,
+            color: Colors.blueAccent,
+          ),
+          onChanged: (ActivationFunction newValue) {
+            setState(() {
+              Network.activationFunction = newValue;
+            });
+          },
+          items: ActivationFunction.values.map<DropdownMenuItem<ActivationFunction>>((ActivationFunction value) {
+            return DropdownMenuItem<ActivationFunction>(
+              value: value,
+              child: Text("${value.toString().split("\.")[1]}"),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

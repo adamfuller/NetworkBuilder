@@ -40,7 +40,7 @@ class MainViewModel {
     isTraining = false;
     this.network = Network(
       [3, 15, 5, 15, 1],
-      normalizationFunction: NormalizationFunction.softplus,
+      normalizationFunction: ActivationFunction.softplus,
     );
 
     this.isLoading = false;

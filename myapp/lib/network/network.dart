@@ -6,7 +6,7 @@ part 'layer.dart';
 part 'neuron.dart';
 
 class Network {
-  static NormalizationFunction normalizationFunction;
+  static ActivationFunction activationFunction;
   List<Layer> layers;
   List<int> hiddenLayerNeuronCount;
   int timesRun = 0;
@@ -23,8 +23,8 @@ class Network {
     return max;
   }
 
-  Network(this.hiddenLayerNeuronCount, {NormalizationFunction normalizationFunction}) {
-    Network.normalizationFunction ??= NormalizationFunction.sigmoid;
+  Network(this.hiddenLayerNeuronCount, {ActivationFunction normalizationFunction}) {
+    Network.activationFunction ??= ActivationFunction.sigmoid;
     this.layers ??= List<Layer>();
     // Add a layer for each count
     for (int i = 0; i < hiddenLayerNeuronCount.length - 1; i++) {

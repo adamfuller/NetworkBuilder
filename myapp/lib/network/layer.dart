@@ -5,7 +5,7 @@ class Layer {
   static double learningRate = 0.033;
 
   List<Neuron> neurons;
-  NormalizationFunction normalizationFunction;
+  ActivationFunction normalizationFunction;
 
   /// Weights per neuron
   // int inputCount;
@@ -34,7 +34,7 @@ class Layer {
   List<double> get gamma => this.neurons.map<double>((n) => n.gamma).toList();
   List<double> get outputs => this.neurons.map<double>((n) => n.output).toList();
 
-  Layer(int inputCount, int outputCount, {this.normalizationFunction = NormalizationFunction.sigmoid}) {
+  Layer(int inputCount, int outputCount, {this.normalizationFunction = ActivationFunction.sigmoid}) {
     this.neurons ??= List<Neuron>();
 
     // Add a new list of weights for each neuron
@@ -48,7 +48,7 @@ class Layer {
     }
   }
 
-  void changeNormalization(NormalizationFunction n) => this.normalizationFunction = n;
+  void changeNormalization(ActivationFunction n) => this.normalizationFunction = n;
 
   List<double> forwardPropagation(List<double> inputs) {
     for (Neuron neuron in neurons) {
