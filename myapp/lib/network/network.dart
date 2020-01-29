@@ -7,11 +7,16 @@ part 'neuron.dart';
 
 class Network {
   static ActivationFunction activationFunction;
+  static double learningFactor = 0.033;
+  static Random r = Random();
   List<Layer> layers;
   List<int> hiddenLayerNeuronCount;
   int timesRun = 0;
   double averagePercentError = 0;
   List<double> pastErrors = List<double>();
+  List<double> lastOutput;
+
+  // double get learningFactor => _learningFactor/(timesRun+1) + _learningFactor/10;
 
   int get maxLayerSize {
     int max = 0;
@@ -23,7 +28,11 @@ class Network {
     return max;
   }
 
-  Network(this.hiddenLayerNeuronCount, {ActivationFunction normalizationFunction}) {
+  Network(
+    this.hiddenLayerNeuronCount, {
+    ActivationFunction normalizationFunction,
+    this.layers,
+  }) {
     Network.activationFunction ??= ActivationFunction.sigmoid;
     this.layers ??= List<Layer>();
     // Add a layer for each count
@@ -38,14 +47,16 @@ class Network {
     }
   }
 
+  /// Returns the output of this network for input __inputs__
   List<double> feedForward(List<double> inputs) {
-    layers[0].forwardPropagation(inputs);
+    List<double> output;
 
-    for (int i = 1; i < this.layers.length; i++) {
-      layers[i].forwardPropagation(layers[i - 1].outputs);
-    }
+    this.layers.forEach((layer) {
+      output = layer.forwardPropagation(output ?? inputs);
+    });
+    lastOutput = output;
 
-    return layers.last.outputs;
+    return output;
   }
 
   void backPropagation(List<double> expected) {

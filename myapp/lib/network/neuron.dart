@@ -1,7 +1,6 @@
 part of "network.dart";
 
 class Neuron {
-  static Random r = Random();
   List<double> weights;
   List<double> weightAdj;
   double gamma;
@@ -17,7 +16,7 @@ class Neuron {
 
     // Initialize weights and empty weight adjustments
     for (int j = 0; j < inputCount; j++) {
-      weights.add(2 * r.nextDouble() - 1);
+      weights.add(2 * Network.r.nextDouble() - 1);
       weightAdj.add(0.0);
     }
   }
@@ -107,6 +106,13 @@ class Neuron {
     for (int i = 0; i < weightAdj.length; i++) {
       weightAdj[i] = gamma * inputs[i];
     }
+  }
+
+  Map<String, dynamic> toJson(){
+    return {
+      "weights": this.weights,
+      "inputs":this.inputs,
+    };
   }
 }
 

@@ -2,7 +2,6 @@ part of "network.dart";
 
 class Layer {
   static Random r = Random();
-  static double learningRate = 0.033;
 
   List<Neuron> neurons;
   ActivationFunction normalizationFunction;
@@ -73,7 +72,7 @@ class Layer {
   void updateWeights() {
     for (int i = 0; i < this.neurons.length; i++) {
       for (int j = 0; j < this.neurons[i].weights.length; j++) {
-        neurons[i].weights[j] += neurons[i].weightAdj[j] * Layer.learningRate;
+        neurons[i].weights[j] += neurons[i].weightAdj[j] * Network.learningFactor;
       }
     }
   }

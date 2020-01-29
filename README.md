@@ -1,7 +1,7 @@
 # NetworkBuilder
 
 ## TODO
-- [ ] Add options to add custom input, output
+- [x] Add options to add custom input, output
 - - [ ] From textbox or csv
 - [ ] Add options to save network
 - [ ] Add options to load network

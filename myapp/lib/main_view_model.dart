@@ -15,10 +15,29 @@ class MainViewModel {
   Network network;
   Timer trainingTimer;
   bool isTraining = false;
+  TextEditingController networkInputsController = TextEditingController();
+  TextEditingController networkOutputsController = TextEditingController();
+  List<List<double>> inputsFromText;
+  List<List<double>> outputsFromText;
+  List<List<double>> testOutputs;
 
   //
   // Getters
   //
+
+  String get testOutputString {
+    if (testOutputs.isEmpty) return "Empty";
+    return testOutputs?.fold<String>("", (s, output) {
+      s += "[";
+      for (int i = 0; i < output.length; i++) {
+        s += "${output[i]}";
+        if (i < output.length - 1) s += ",";
+      }
+      s += "]";
+      s += "\n";
+      return s;
+    });
+  }
 
   //
   // Constructor
@@ -36,6 +55,18 @@ class MainViewModel {
     //
     // Write any initializing code here
     //
+    inputsFromText = List<List<double>>();
+    testOutputs = List<List<double>>();
+    // Assign test inputs
+    networkInputsController ??= TextEditingController();
+    networkInputsController.text = "0, 0, 0\n0, 0, 1\n0, 1, 0\n0, 1, 1\n1, 0, 0\n1, 0, 1\n1, 1, 0\n1, 1, 1\n";
+    
+    // Assign test outputs
+    networkOutputsController ??= TextEditingController();
+    networkOutputsController.text = "0\n1\n1\n0\n1\n0\n0\n0\n";
+
+    // Parse the text from networkInputsController
+    updateTrainingData();
     this.trainingTimer?.cancel();
     isTraining = false;
     this.network = Network(
@@ -76,33 +107,11 @@ class MainViewModel {
     onDataChanged();
     if (isTraining) {
       trainingTimer = Timer.periodic(Duration(milliseconds: 100), (t) {
-        List<List<double>> inputs = [
-          [0, 0, 0],
-          [0, 0, 1],
-          [0, 1, 0],
-          [0, 1, 1],
-          [1, 0, 0],
-          [1, 0, 1],
-          [1, 1, 0],
-          [1, 1, 1],
-        ];
-        List<List<double>> outputs = [
-          [0],
-          [1],
-          [1],
-          [0],
-          [1],
-          [0],
-          [0],
-          [0],
-        ];
-        for (int j = 0; j < outputs.length; j++) {
-          this.network.feedForward(inputs[j]);
-          this.network.backPropagation(outputs[j]);
+        testOutputs.clear();
+        for (int j = 0; j < outputsFromText.length; j++) {
+          testOutputs.add(this.network.feedForward(inputsFromText[j]));
+          this.network.backPropagation(outputsFromText[j]);
         }
-        // for (int j = 0; j < inputs.length; j++) {
-        //   print("${inputs[j]}, ${this.network.feedForward(inputs[j])}");
-        // }
         onDataChanged();
       });
     } else {
@@ -110,35 +119,54 @@ class MainViewModel {
     }
   }
 
-  void trainPressed() {
-    List<List<double>> inputs = [
-      [0, 0, 0],
-      [0, 0, 1],
-      [0, 1, 0],
-      [0, 1, 1],
-      [1, 0, 0],
-      [1, 0, 1],
-      [1, 1, 0],
-      [1, 1, 1],
-    ];
-    List<List<double>> outputs = [
-      [0],
-      [1],
-      [1],
-      [0],
-      [1],
-      [0],
-      [0],
-      [0],
-    ];
-    for (int i = 0; i < 1; i++) {
-      for (int j = 0; j < outputs.length; j++) {
-        this.network.feedForward(inputs[j]);
-        this.network.backPropagation(outputs[j]);
-      }
+  void testPressed() {
+    // Check if the data is there
+    if (inputsFromText.isEmpty) updateTrainingData();
+    testOutputs.clear();
+    for (List<double> input in inputsFromText) {
+      testOutputs.add(network.feedForward(input));
     }
-    // for (int j = 0; j < inputs.length; j++) {
-    //   print("${inputs[j]}, ${this.network.feedForward(inputs[j])}");
-    // }
+    onDataChanged();
+  }
+
+  void updateTrainingData() {
+    // Make sure there is some data
+    if (networkInputsController.text.isEmpty) return;
+    if (networkOutputsController.text.isEmpty) return;
+
+    // Update inputs
+    inputsFromText?.clear();
+    inputsFromText = _parseDoubleList(networkInputsController.text);
+
+    // Update expected outputs
+    outputsFromText?.clear();
+    outputsFromText = _parseDoubleList(networkOutputsController.text);
+
+    onDataChanged();
+  }
+
+  List<List<double>> _parseDoubleList(String text) {
+    List<List<double>> _output = List<List<double>>();
+    if (text.isEmpty) return null;
+    List<String> lines = text.split("\n").where((l) => l.isNotEmpty).toList();
+    for (String s in lines) {
+      _output.add(List<double>());
+      List<String> elements = s.split(",").where((l) => l.isNotEmpty).toList();
+      elements.forEach(
+        (e) => _output.last.add(
+          double.parse(e),
+        ),
+      );
+    }
+    return _output;
+  }
+
+  void networkOutputsChanged(String s) {
+    onDataChanged();
+  }
+
+  /// Not really used yet?
+  void networkInputsChanged(String s) {
+    onDataChanged();
   }
 }
