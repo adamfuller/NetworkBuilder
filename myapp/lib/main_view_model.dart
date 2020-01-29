@@ -20,6 +20,7 @@ class MainViewModel {
   List<List<double>> inputsFromText;
   List<List<double>> outputsFromText;
   List<List<double>> testOutputs;
+  List<int> layers = List<int>();
 
   //
   // Getters
@@ -60,22 +61,37 @@ class MainViewModel {
     // Assign test inputs
     networkInputsController ??= TextEditingController();
     networkInputsController.text = "0, 0, 0\n0, 0, 1\n0, 1, 0\n0, 1, 1\n1, 0, 0\n1, 0, 1\n1, 1, 0\n1, 1, 1\n";
-    
+
     // Assign test outputs
     networkOutputsController ??= TextEditingController();
     networkOutputsController.text = "0\n1\n1\n0\n1\n0\n0\n0\n";
 
     // Parse the text from networkInputsController
+    layers = [3, 15, 5, 15, 1];
     updateTrainingData();
+
     this.trainingTimer?.cancel();
     isTraining = false;
-    this.network = Network(
-      [3, 15, 5, 15, 1],
-      normalizationFunction: ActivationFunction.softplus,
-    );
+
+    _assignNetwork();
 
     this.isLoading = false;
     onDataChanged();
+  }
+
+  void _assignNetwork() {
+    this.network = Network(
+      layers,
+      normalizationFunction: ActivationFunction.softplus,
+    );
+  }
+
+  void resetNetwork(){
+    for (Layer layer in network.layers){
+      for (Neuron neuron in layer.neurons){
+        neuron.reset();
+      }
+    }
   }
 
   //
@@ -141,6 +157,17 @@ class MainViewModel {
     // Update expected outputs
     outputsFromText?.clear();
     outputsFromText = _parseDoubleList(networkOutputsController.text);
+    bool shouldReassign = false;
+    if (layers.last != outputsFromText[0].length) {
+      layers.last = outputsFromText[0].length;
+      shouldReassign = true;
+    }
+    if (layers[0] != inputsFromText[0].length) {
+      layers[0] = inputsFromText[0].length;
+      shouldReassign = true;
+    }
+
+    if (shouldReassign) _assignNetwork();
 
     onDataChanged();
   }

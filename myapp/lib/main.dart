@@ -75,7 +75,7 @@ class _MainViewState extends State<MainView> {
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Text("Reset"),
-              onPressed: vm.init,
+              onPressed: vm.resetNetwork,
             ),
           ),
           Padding(

@@ -21,6 +21,12 @@ class Neuron {
     }
   }
 
+  void reset(){
+    for (int i = 0; i < weights.length; i++) {
+      weights[i] = (2 * Network.r.nextDouble() - 1);
+    }
+  }
+
   double sigmoid(double x) => 1.0 / (1.0 + exp(-x));
   double sigmoidDerivative(double x) => sigmoid(x) * (1.0 - sigmoid(x));
   double sigmoidishDerivative(double x) => x * (1.0 - x);
