@@ -15,6 +15,8 @@ class MainViewModel {
   Network network;
   Timer trainingTimer;
   bool isTraining = false;
+  String copyButtonText = "Copy";
+  String copyJsonButtonText = "Copy Network";
   TextEditingController networkInputsController = TextEditingController();
   TextEditingController networkOutputsController = TextEditingController();
   List<List<double>> inputsFromText;
@@ -82,7 +84,7 @@ class MainViewModel {
   void _assignNetwork() {
     this.network = Network(
       layers,
-      normalizationFunction: ActivationFunction.softplus,
+      activationFunction: ActivationFunction.softplus,
     );
   }
 
@@ -92,6 +94,15 @@ class MainViewModel {
         neuron.reset();
       }
     }
+  }
+
+  void savePressed(){
+    Clipboard.setData(ClipboardData(text: network.prettyJsonString));
+    copyJsonButtonText = "Copied";
+    onDataChanged();
+    Timer(Duration(seconds: 1), (){
+      copyJsonButtonText = "Copy Network";
+    });
   }
 
   //
@@ -157,17 +168,18 @@ class MainViewModel {
     // Update expected outputs
     outputsFromText?.clear();
     outputsFromText = _parseDoubleList(networkOutputsController.text);
-    bool shouldReassign = false;
+    // bool shouldReassign = false;
     if (layers.last != outputsFromText[0].length) {
       layers.last = outputsFromText[0].length;
-      shouldReassign = true;
+      network.layers.last.resize(outputsFromText[0].length);
+      // shouldReassign = true;
     }
     if (layers[0] != inputsFromText[0].length) {
       layers[0] = inputsFromText[0].length;
-      shouldReassign = true;
+      // shouldReassign = true;
     }
 
-    if (shouldReassign) _assignNetwork();
+    // if (shouldReassign) _assignNetwork();
 
     onDataChanged();
   }

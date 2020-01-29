@@ -1,5 +1,6 @@
 library neural_network;
 
+import 'dart:convert';
 import 'dart:math';
 
 part 'layer.dart';
@@ -18,6 +19,9 @@ class Network {
 
   // double get learningFactor => _learningFactor/(timesRun+1) + _learningFactor/10;
 
+  String get jsonString => jsonEncode(this.toJson());
+  String get prettyJsonString => JsonEncoder.withIndent('  ').convert(this.toJson());
+
   int get maxLayerSize {
     int max = 0;
     for (Layer l in layers) {
@@ -25,12 +29,13 @@ class Network {
         max = l.neurons.length;
       }
     }
+
     return max;
   }
 
   Network(
     this.hiddenLayerNeuronCount, {
-    ActivationFunction normalizationFunction,
+    ActivationFunction activationFunction,
     this.layers,
   }) {
     Network.activationFunction ??= ActivationFunction.sigmoid;
@@ -44,6 +49,36 @@ class Network {
         ),
       );
     }
+  }
+
+  factory Network.fromJsonString(String jsonString) {
+    Map<String, dynamic> map = jsonDecode(jsonString);
+    return Network.fromJson(map);
+  }
+
+  factory Network.fromJson(Map<String, dynamic> map) {
+    Network.learningFactor = map["learningFactor"];
+    Network n = Network([0]);
+    n.layers = map["layers"].map<Layer>((lString) => Layer.fromJson(lString)).toList();
+    n.timesRun = map["timesRun"];
+    n.hiddenLayerNeuronCount = map["hiddenLayerNeuronCount"];
+    n.averagePercentError = map["averagePercentError"];
+    n.pastErrors = map["pastErrors"];
+    n.lastOutput = map["lastOutput"];
+
+    return n;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "layers": this.layers.map<Map<String, dynamic>>((l) => l.toJson()).toList(),
+      "timesRun": this.timesRun,
+      "learningFactor": Network.learningFactor,
+      "hiddenLayerNeuronCount": this.hiddenLayerNeuronCount,
+      "averagePercentError": this.averagePercentError,
+      "pastErrors": this.pastErrors,
+      "lastOutput": this.lastOutput,
+    };
   }
 
   /// Returns the output of this network for input __inputs__

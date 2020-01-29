@@ -7,9 +7,8 @@ class Neuron {
   double error;
   List<double> inputs;
   double output;
-  ActivationFunction normalizationFunction;
 
-  Neuron(int inputCount, {this.normalizationFunction}) {
+  Neuron(int inputCount) {
     this.weights = List<double>();
     this.weightAdj = List<double>();
     this.inputs = List<double>();
@@ -21,7 +20,29 @@ class Neuron {
     }
   }
 
-  void reset(){
+  factory Neuron.fromJson(Map<String, dynamic> map) {
+    Neuron n = Neuron(0);
+    n.weights = map["weights"];
+    n.weightAdj = map["weightsAdj"];
+    n.inputs = map["inputs"];
+    n.error = map["error"];
+    n.output = map["output"];
+    n.gamma = map["gamma"];
+    return n;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "weights": this.weights,
+      "weightAdj": this.weightAdj,
+      "inputs": this.inputs,
+      "error": this.error,
+      "output": this.output,
+      "gamma": this.gamma,
+    };
+  }
+
+  void reset() {
     for (int i = 0; i < weights.length; i++) {
       weights[i] = (2 * Network.r.nextDouble() - 1);
     }
@@ -81,20 +102,18 @@ class Neuron {
     }
   }
 
-  void changeNormalization(ActivationFunction n) => this.normalizationFunction = n;
-
   double forwardPropagation(List<double> input) {
     this.inputs = input;
     output = 0;
     // Adjust if input is too large
-    if (input.length >= weights.length){
-      for (int i = weights.length;i<input.length; i++){
+    if (input.length >= weights.length) {
+      for (int i = weights.length; i < input.length; i++) {
         weights.add((2 * Network.r.nextDouble() - 1));
       }
     }
     // Adjust if input is too small
-    if (inputs.length < weights.length){
-      weights = weights.take(weights.length - (weights.length-inputs.length)).toList();
+    if (inputs.length < weights.length) {
+      weights = weights.take(weights.length - (weights.length - inputs.length)).toList();
     }
     for (int i = 0; i < inputs.length; i++) {
       output += inputs[i] * weights[i];
@@ -122,13 +141,6 @@ class Neuron {
     for (int i = 0; i < weightAdj.length; i++) {
       weightAdj[i] = gamma * inputs[i];
     }
-  }
-
-  Map<String, dynamic> toJson(){
-    return {
-      "weights": this.weights,
-      "inputs":this.inputs,
-    };
   }
 }
 

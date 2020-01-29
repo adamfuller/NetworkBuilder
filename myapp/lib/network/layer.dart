@@ -4,7 +4,6 @@ class Layer {
   static Random r = Random();
 
   List<Neuron> neurons;
-  ActivationFunction normalizationFunction;
 
   /// Weights per neuron
   // int inputCount;
@@ -13,6 +12,7 @@ class Layer {
   // int outputCount;
 
   List<List<double>> get weights => this.neurons.map<List<double>>((n) => n.weights).toList();
+
   /// Flip the weights so they are weights[weightIndex][neuronIndex]
   List<List<double>> get weightsByNeuron {
     List<List<double>> ws = List<List<double>>();
@@ -38,18 +38,25 @@ class Layer {
 
     // Add a new list of weights for each neuron
     for (int i = 0; i < outputCount; i++) {
-      this.neurons.add(
-            Neuron(
-              inputCount,
-              normalizationFunction: this.normalizationFunction,
-            ),
-          );
+      this.neurons.add(Neuron(inputCount));
     }
   }
 
-  void resize(int newSize){
-    if (newSize > this.neurons.length){
-      for (int i = this.neurons.length; i<newSize; i++){
+  factory Layer.fromJson(Map<String, dynamic> map) {
+    Layer l = Layer(0,0);
+    l.neurons = map["neurons"].map<Neuron>((nString) => Neuron.fromJson(nString)).toList();
+    return l;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "neurons": this.neurons.map<Map<String,dynamic>>((n)=>n.toJson()).toList(),
+    };
+  }
+
+  void resize(int newSize) {
+    if (newSize > this.neurons.length) {
+      for (int i = this.neurons.length; i < newSize; i++) {
         this.neurons.add(Neuron(this.neurons[0].weights.length));
       }
     } else {

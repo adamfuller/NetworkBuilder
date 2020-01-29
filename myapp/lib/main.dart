@@ -63,8 +63,8 @@ class _MainViewState extends State<MainView> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
             ),
-            child: Text("Save"),
-            onPressed: null,
+            child: Text("${vm.copyJsonButtonText}"),
+            onPressed: vm.savePressed,
           ),
         ),
         actions: <Widget>[
@@ -204,9 +204,13 @@ class _MainViewState extends State<MainView> {
               borderRadius: BorderRadius.circular(30),
             ),
             icon: Icon(Icons.content_copy),
-            label: Text("Copy"),
+            label: Text("${vm.copyButtonText}"),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: vm.testOutputString));
+              setState((){vm.copyButtonText = "Copied";});
+              Timer(Duration(seconds: 1), (){
+                setState((){vm.copyButtonText = "Copy";});
+              });
             },
           ),
           Padding(
@@ -269,7 +273,7 @@ class _MainViewState extends State<MainView> {
                 setState(() {
                   vm.network = Network(
                     counts,
-                    normalizationFunction: vm.network.layers[0].normalizationFunction,
+                    activationFunction: Network.activationFunction,
                   );
                 });
               },
@@ -296,7 +300,7 @@ class _MainViewState extends State<MainView> {
                 setState(() {
                   vm.network = Network(
                     counts,
-                    normalizationFunction: vm.network.layers[0].normalizationFunction,
+                    activationFunction: Network.activationFunction,
                   );
                 });
               }
