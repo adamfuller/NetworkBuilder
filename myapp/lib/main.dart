@@ -316,6 +316,8 @@ class _MainViewState extends State<MainView> {
               if (newSize == null) return;
               int updateIndex = (index / 2).floor();
               vm.network.layers[updateIndex].resize(newSize);
+              List<double> sample = List.filled(newSize, 0.1);
+              vm.network.layers[updateIndex+1].forwardPropagation(sample);
               setState(() {});
             },
             child: Card(

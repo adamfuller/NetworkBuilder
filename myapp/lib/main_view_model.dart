@@ -123,6 +123,8 @@ class MainViewModel {
   //
   void dispose() {
     this._listeners?.forEach((_) => _.cancel());
+    this.networkInputsController.dispose();
+    this.networkOutputsController.dispose();
   }
 
   void outputPressed() {
