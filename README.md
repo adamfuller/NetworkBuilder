@@ -6,4 +6,4 @@
 - [ ] Add options to save network
 - [ ] Add options to load network
 - [ ] Make Layers/Neurons scalable to N-length inputs
-- [ ] Add training iteration counter
+- [x] Add training iteration counter
