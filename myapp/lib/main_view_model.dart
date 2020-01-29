@@ -103,6 +103,7 @@ class MainViewModel {
     onDataChanged();
     Timer(Duration(seconds: 1), () {
       copyJsonButtonText = "Copy Network";
+      onDataChanged();
     });
   }
 

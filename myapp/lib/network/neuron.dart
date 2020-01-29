@@ -32,14 +32,15 @@ class Neuron {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      "weights": this.weights,
-      "weightAdj": this.weightAdj,
-      "inputs": this.inputs,
-      "error": this.error,
-      "output": this.output,
-      "gamma": this.gamma,
+    var output = {
+      "weights": weights.map<double>((n) => n.isNaN ? 1 : n).toList(),
+      "weightAdj": weightAdj.map<double>((n) => n.isNaN ? 0 : n).toList(),
+      "inputs": inputs.map<double>((n) => n.isNaN ? 1 : n).toList(),
+      "error": (error?.isNaN) ?? true ? 0 : error,
+      "output": this.output?.isNaN ?? true ? 0 : this.output,
+      "gamma": gamma?.isNaN ?? true ? 0 : gamma,
     };
+    return output;
   }
 
   void reset() {

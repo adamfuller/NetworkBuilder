@@ -280,14 +280,18 @@ class _MainViewState extends State<MainView> {
                 int neuronCount = int.tryParse(neuronCountString);
                 if (neuronCount == null) return;
 
-                int insertIndex = (index / 2).floor() + 1;
+                int insertIndex = (index / 2).floor();
                 List<int> counts = vm.network.hiddenLayerNeuronCount;
                 counts.insert(insertIndex, neuronCount);
+                // Set sampleData count to weight of initial layer
+                int sampleCount = vm.network.layers[0].neurons[0].weights.length;
+                // Generate junk sample data
+                List<double> sample = List.filled(sampleCount, 0.5);
+                // Insert the layer
+                vm.network.layers.insert(insertIndex, Layer(0,neuronCount));
+                // Feed it through and update
                 setState(() {
-                  vm.network = Network(
-                    counts,
-                    activationFunction: Network.activationFunction,
-                  );
+                  vm.network.feedForward(sample);
                 });
               },
               child: Card(

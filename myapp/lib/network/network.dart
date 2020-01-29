@@ -70,15 +70,16 @@ class Network {
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    var output = {
       "layers": this.layers.map<Map<String, dynamic>>((l) => l.toJson()).toList(),
       "timesRun": this.timesRun,
       "learningFactor": Network.learningFactor,
       "hiddenLayerNeuronCount": this.hiddenLayerNeuronCount,
-      "averagePercentError": this.averagePercentError,
-      "pastErrors": this.pastErrors,
-      "lastOutput": this.lastOutput,
+      "averagePercentError": this.averagePercentError.isNaN ? 0 : this.averagePercentError,
+      "pastErrors": this.pastErrors?.where((v) => !v.isNaN)?.toList(),
+      "lastOutput": this.lastOutput?.where((v) => !v.isNaN)?.toList(),
     };
+    return output;
   }
 
   /// Returns the output of this network for input __inputs__
@@ -99,15 +100,17 @@ class Network {
     for (double v in expected) expectedSum += v;
     double calculatedSum = 0;
     for (double v in this.layers.last.outputs) calculatedSum += v;
-    double currentError = expectedSum > 0 ? (expectedSum - calculatedSum) / expectedSum * 100 : 0;
-    pastErrors.add(currentError);
-    this.averagePercentError = 0;
-    for (int i = 0; i < pastErrors.length; i++) {
-      averagePercentError += pastErrors[i];
-    }
-    averagePercentError /= pastErrors.length;
-    if (pastErrors.length > 5 && currentError > 0) {
-      pastErrors.removeAt(0);
+    if (expectedSum != 0) {
+      double currentError = expectedSum > 0 ? (expectedSum - calculatedSum) / expectedSum * 100 : 0;
+      pastErrors.add(currentError);
+      this.averagePercentError = 0;
+      for (int i = 0; i < pastErrors.length; i++) {
+        averagePercentError += pastErrors[i];
+      }
+      averagePercentError /= pastErrors.length;
+      if (pastErrors.length > 5 && currentError > 0) {
+        pastErrors.removeAt(0);
+      }
     }
     //
     // End of error calculation
