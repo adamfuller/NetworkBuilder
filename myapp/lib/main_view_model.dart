@@ -88,19 +88,20 @@ class MainViewModel {
     );
   }
 
-  void resetNetwork(){
-    for (Layer layer in network.layers){
-      for (Neuron neuron in layer.neurons){
+  void resetNetwork() {
+    for (Layer layer in network.layers) {
+      for (Neuron neuron in layer.neurons) {
         neuron.reset();
       }
     }
+    onDataChanged();
   }
 
-  void savePressed(){
+  void savePressed() {
     Clipboard.setData(ClipboardData(text: network.prettyJsonString));
     copyJsonButtonText = "Copied";
     onDataChanged();
-    Timer(Duration(seconds: 1), (){
+    Timer(Duration(seconds: 1), () {
       copyJsonButtonText = "Copy Network";
     });
   }

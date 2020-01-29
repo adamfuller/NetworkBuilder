@@ -293,16 +293,16 @@ class _MainViewState extends State<MainView> {
                 denyText: "No",
               );
               if (shouldRemove) {
-                vm.network.layers.removeAt((index / 2).floor());
-                int removeIndex = (index / 2).floor() + 1;
-                List<int> counts = vm.network.hiddenLayerNeuronCount;
-                counts.removeAt(removeIndex);
-                setState(() {
-                  vm.network = Network(
-                    counts,
-                    activationFunction: Network.activationFunction,
-                  );
-                });
+                int removeIndex = (index / 2).floor();
+                // Set sampleData count to weight of initial layer
+                int sampleCount = vm.network.layers[0].neurons[0].weights.length;
+                // Generate junk sample data
+                List<double> sample = List.filled(sampleCount, 0.5);
+                // Remove the layer
+                vm.network.layers.removeAt(removeIndex);
+                // Pass the sample data to correct weights
+                vm.network.feedForward(sample);
+                setState(() {});
               }
             },
             onTap: () async {

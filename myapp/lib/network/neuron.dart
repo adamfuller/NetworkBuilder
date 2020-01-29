@@ -109,11 +109,13 @@ class Neuron {
     if (input.length >= weights.length) {
       for (int i = weights.length; i < input.length; i++) {
         weights.add((2 * Network.r.nextDouble() - 1));
+        weightAdj.add(0.0);
       }
     }
     // Adjust if input is too small
     if (inputs.length < weights.length) {
       weights = weights.take(weights.length - (weights.length - inputs.length)).toList();
+      weightAdj = weightAdj.take(weightAdj.length - (weightAdj.length - inputs.length)).toList();
     }
     for (int i = 0; i < inputs.length; i++) {
       output += inputs[i] * weights[i];
@@ -127,6 +129,7 @@ class Neuron {
     gamma = error * normalizeDerivative(output);
     // For each input calculate the new corresponding weight
     for (int i = 0; i < inputs.length; i++) {
+      if (weightAdj.length <= i) weightAdj.add(0.0);
       weightAdj[i] = gamma * inputs[i];
     }
   }
@@ -138,7 +141,8 @@ class Neuron {
       gamma += gammaForward[j] * weightsForward[j];
     }
     gamma *= normalizeDerivative(output);
-    for (int i = 0; i < weightAdj.length; i++) {
+    for (int i = 0; i < inputs.length; i++) {
+      if (weightAdj.length <= i) weightAdj.add(0.0);
       weightAdj[i] = gamma * inputs[i];
     }
   }

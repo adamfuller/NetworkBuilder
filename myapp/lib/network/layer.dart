@@ -86,7 +86,7 @@ class Layer {
 
   void updateWeights() {
     for (int i = 0; i < this.neurons.length; i++) {
-      for (int j = 0; j < this.neurons[i].weights.length; j++) {
+      for (int j = 0; j < this.neurons[i].weightAdj.length; j++) {
         neurons[i].weights[j] += neurons[i].weightAdj[j] * Network.learningFactor;
       }
     }
