@@ -106,6 +106,9 @@ class _MainViewState extends State<MainView> {
                   child: Text("Average % Error: ${vm.network.averagePercentError.toStringAsFixed(8)}"),
                 )
               : null,
+          Center(
+            child: Text("Times Run: ${vm.network.timesRun}"),
+          ),
           _getNetworkMap(),
         ]..removeWhere((w) => w == null),
       ),
@@ -168,11 +171,11 @@ class _MainViewState extends State<MainView> {
                 controller: vm.networkInputsController,
                 onChanged: vm.networkInputsChanged,
                 textInputAction: TextInputAction.newline,
-                onEditingComplete: (){
-                  print("F");
+                onEditingComplete: () {
+                  // print("F");
                 },
-                onSubmitted: (s){
-                  print(s);
+                onSubmitted: (s) {
+                  // print(s);
                 },
               ),
             ],
@@ -288,10 +291,11 @@ class _MainViewState extends State<MainView> {
                 // Generate junk sample data
                 List<double> sample = List.filled(sampleCount, 0.5);
                 // Insert the layer
-                vm.network.layers.insert(insertIndex, Layer(0,neuronCount));
+                vm.network.layers.insert(insertIndex, Layer(0, neuronCount));
                 // Feed it through and update
                 setState(() {
                   vm.network.feedForward(sample);
+                  vm.network.timesRun = 0;
                 });
               },
               child: Card(
@@ -319,6 +323,7 @@ class _MainViewState extends State<MainView> {
                 vm.network.layers.removeAt(removeIndex);
                 // Pass the sample data to correct weights
                 vm.network.feedForward(sample);
+                vm.network.timesRun = 0;
                 setState(() {});
               }
             },
@@ -335,6 +340,7 @@ class _MainViewState extends State<MainView> {
               vm.network.layers[updateIndex].resize(newSize);
               List<double> sample = List.filled(newSize, 0.1);
               vm.network.layers[updateIndex + 1].forwardPropagation(sample);
+              vm.network.timesRun = 0;
               setState(() {});
             },
             child: Card(

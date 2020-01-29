@@ -89,6 +89,7 @@ class MainViewModel {
   }
 
   void resetNetwork() {
+    network.timesRun = 0;
     for (Layer layer in network.layers) {
       for (Neuron neuron in layer.neurons) {
         neuron.reset();
