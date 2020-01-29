@@ -3,10 +3,10 @@ part of "network.dart";
 class Neuron {
   List<double> weights;
   List<double> weightAdj;
-  double gamma;
-  double error;
+  double gamma = 0.0;
+  double error = 0.0;
   List<double> inputs;
-  double output;
+  double output = 0.0;
 
   Neuron(int inputCount) {
     this.weights = List<double>();
