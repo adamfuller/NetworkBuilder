@@ -161,11 +161,19 @@ class _MainViewState extends State<MainView> {
               style: TextStyle(color: Theme.of(context).textTheme.subtitle.color.withAlpha(125)),
             ),
             children: <Widget>[
-              ScrollingTextField(
-                hintText: "Input Data",
+              TextField(
+                keyboardType: TextInputType.multiline,
+                maxLines: null,
+                decoration: InputDecoration.collapsed(hintText: "Input Data"),
                 controller: vm.networkInputsController,
                 onChanged: vm.networkInputsChanged,
-                textInputAction: TextInputAction.done,
+                textInputAction: TextInputAction.newline,
+                onEditingComplete: (){
+                  print("F");
+                },
+                onSubmitted: (s){
+                  print(s);
+                },
               ),
             ],
           ),
@@ -179,11 +187,12 @@ class _MainViewState extends State<MainView> {
               style: TextStyle(color: Theme.of(context).textTheme.subtitle.color.withAlpha(125)),
             ),
             children: <Widget>[
-              ScrollingTextField(
-                hintText: "Output Data",
+              TextField(
+                keyboardType: TextInputType.multiline,
+                maxLines: null,
+                decoration: InputDecoration.collapsed(hintText: "Output Data"),
                 controller: vm.networkOutputsController,
                 onChanged: vm.networkOutputsChanged,
-                textInputAction: TextInputAction.done,
               ),
             ],
           ),
@@ -207,9 +216,13 @@ class _MainViewState extends State<MainView> {
             label: Text("${vm.copyButtonText}"),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: vm.testOutputString));
-              setState((){vm.copyButtonText = "Copied";});
-              Timer(Duration(seconds: 1), (){
-                setState((){vm.copyButtonText = "Copy";});
+              setState(() {
+                vm.copyButtonText = "Copied";
+              });
+              Timer(Duration(seconds: 1), () {
+                setState(() {
+                  vm.copyButtonText = "Copy";
+                });
               });
             },
           ),
@@ -317,7 +330,7 @@ class _MainViewState extends State<MainView> {
               int updateIndex = (index / 2).floor();
               vm.network.layers[updateIndex].resize(newSize);
               List<double> sample = List.filled(newSize, 0.1);
-              vm.network.layers[updateIndex+1].forwardPropagation(sample);
+              vm.network.layers[updateIndex + 1].forwardPropagation(sample);
               setState(() {});
             },
             child: Card(
