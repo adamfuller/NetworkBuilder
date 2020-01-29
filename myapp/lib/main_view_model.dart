@@ -23,6 +23,7 @@ class MainViewModel {
   List<List<double>> outputsFromText;
   List<List<double>> testOutputs;
   List<int> layers = List<int>();
+  String _testOutputString;
 
   //
   // Getters
@@ -30,7 +31,9 @@ class MainViewModel {
 
   String get testOutputString {
     if (testOutputs.isEmpty) return "Empty";
-    return testOutputs?.fold<String>("", (s, output) {
+    if (_testOutputString != null) return _testOutputString;
+
+    _testOutputString = testOutputs?.fold<String>("", (s, output) {
       s += "[";
       for (int i = 0; i < output.length; i++) {
         s += "${output[i]}";
@@ -40,6 +43,8 @@ class MainViewModel {
       s += "\n";
       return s;
     });
+
+    return _testOutputString;
   }
 
   //
@@ -69,7 +74,7 @@ class MainViewModel {
     networkOutputsController.text = "0\n1\n1\n0\n1\n0\n0\n0\n";
 
     // Parse the text from networkInputsController
-    layers = [3, 15, 5, 15, 1];
+    layers = [3, 8, 5, 8, 1];
     updateTrainingData();
 
     this.trainingTimer?.cancel();
@@ -139,6 +144,7 @@ class MainViewModel {
     onDataChanged();
     if (isTraining) {
       trainingTimer = Timer.periodic(Duration(milliseconds: 100), (t) {
+        _testOutputString = null;
         testOutputs.clear();
         for (int j = 0; j < outputsFromText.length; j++) {
           testOutputs.add(this.network.feedForward(inputsFromText[j]));
@@ -152,6 +158,7 @@ class MainViewModel {
   }
 
   void testPressed() {
+    _testOutputString = null;
     // Check if the data is there
     if (inputsFromText.isEmpty) updateTrainingData();
     testOutputs.clear();

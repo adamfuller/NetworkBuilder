@@ -6,6 +6,7 @@ import 'package:custom_widget/custom_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'components/network_map.dart';
 import 'network/network.dart';
 import "tools/dialogs.dart";
 
@@ -397,65 +398,8 @@ class _MainViewState extends State<MainView> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
-      child: CustomWidget(
-        size: MediaQuery.of(context).size.shortestSide,
-        onPaint: (c, s, d) {
-          Paint linePaint = Paint();
-          linePaint.strokeWidth = 1.5;
-
-          Paint neuronPaint = Paint();
-          neuronPaint.color = Color.fromARGB(235, 0x21, 0x96, 0xF3);
-
-          // double spaceInLayer = s.height / (vm.network.maxLayerSize + 1);
-          double spaceBetweenLayers = s.width / (vm.network.layers.length + 1);
-          double spaceAround = 20;
-          double diameter = 10;
-          List<List<Offset>> positions = List<List<Offset>>();
-          List<Rect> nodePositions = List<Rect>();
-
-          for (int i = 0; i < vm.network.layers.length + 1; i++) {
-            positions.add(List<Offset>());
-            List<Layer> sub = vm.network.layers.take(i).toList();
-            Layer layer = (sub.length > 0 && i < vm.network.layers.length) ? sub.last : null;
-            int nodeCount = layer != null ? layer.neurons.length : vm.network.layers[0].neurons[0].weights.length;
-            if (i == vm.network.layers.length) {
-              nodeCount = vm.network.layers.last.neurons.length;
-            }
-            double spaceBetweenNodes = (s.height - 2 * spaceAround) / nodeCount;
-            double layerXPosition = spaceBetweenLayers / 2 + i * spaceBetweenLayers;
-            // Draw the nodes
-            for (int j = 0; j < nodeCount; j++) {
-              double nodeYPosition = spaceBetweenNodes / 2 + spaceBetweenNodes * j + spaceAround;
-              Rect nodeRect = Rect.fromLTWH(layerXPosition, nodeYPosition, diameter, diameter);
-              nodePositions.add(nodeRect);
-              // c.drawArc(nodeRect, 0, 6.29, true, neuronPaint);
-              // Add points
-              positions[i].add(Offset(layerXPosition + diameter / 2, nodeYPosition + diameter / 2));
-            }
-          }
-
-          for (int i = 1; i < positions.length; i++) {
-            // Draw from all in i to i-1
-            // i-i is the index in the layers
-            // j is the index of the weight
-            for (int j = 0; j < positions[i].length; j++) {
-              // position of point on right
-              // index of the neuron
-              for (int x = 0; x < positions[i - 1].length; x++) {
-                // position of point to the left
-                // also index of the weight
-                double weight = vm.network.layers[i - 1].neurons[j].weights[x];
-                if (weight <= 1) weight *= 255;
-                linePaint.color = Color.fromARGB(255, (weight > 0 ? weight : 0).floor(), (weight < 0 ? weight : 0).floor(), 0);
-                c.drawLine(positions[i][j], positions[i - 1][x], linePaint);
-              }
-            }
-          }
-
-          for (Rect r in nodePositions) {
-            c.drawArc(r, 0, 6.29, true, neuronPaint);
-          }
-        },
+      child: NetworkMap(
+        network: vm.network,
       ),
     );
   }
