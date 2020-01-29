@@ -86,6 +86,16 @@ class Neuron {
   double forwardPropagation(List<double> input) {
     this.inputs = input;
     output = 0;
+    // Adjust if input is too large
+    if (input.length >= weights.length){
+      for (int i = weights.length;i<input.length; i++){
+        weights.add((2 * Network.r.nextDouble() - 1));
+      }
+    }
+    // Adjust if input is too small
+    if (inputs.length < weights.length){
+      weights = weights.take(weights.length - (weights.length-inputs.length)).toList();
+    }
     for (int i = 0; i < inputs.length; i++) {
       output += inputs[i] * weights[i];
     }

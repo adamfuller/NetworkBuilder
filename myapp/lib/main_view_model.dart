@@ -181,7 +181,7 @@ class MainViewModel {
       List<String> elements = s.split(",").where((l) => l.isNotEmpty).toList();
       elements.forEach(
         (e) => _output.last.add(
-          double.parse(e),
+          double.tryParse(e),
         ),
       );
     }

@@ -41,7 +41,6 @@ class Network {
         Layer(
           hiddenLayerNeuronCount[i],
           hiddenLayerNeuronCount[i + 1],
-          normalizationFunction: normalizationFunction,
         ),
       );
     }

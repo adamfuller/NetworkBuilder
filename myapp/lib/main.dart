@@ -257,9 +257,12 @@ class _MainViewState extends State<MainView> {
                   "Add new layer?",
                   subtitle: "This will reset the current network.",
                   hintText: "How many neurons?",
+                  keyboardType: TextInputType.number,
                 );
                 if (neuronCountString == null) return;
-                int neuronCount = int.parse(neuronCountString);
+                int neuronCount = int.tryParse(neuronCountString);
+                if (neuronCount == null) return;
+
                 int insertIndex = (index / 2).floor() + 1;
                 List<int> counts = vm.network.hiddenLayerNeuronCount;
                 counts.insert(insertIndex, neuronCount);
@@ -297,6 +300,19 @@ class _MainViewState extends State<MainView> {
                   );
                 });
               }
+            },
+            onTap: () async {
+              String nextSizeString = await showInputDialog(
+                context,
+                "Update layer size?",
+                subtitle: "How many neurons should be in this layer?",
+              );
+              if (nextSizeString == null || nextSizeString.isEmpty) return;
+              int newSize = int.tryParse(nextSizeString);
+              if (newSize == null) return;
+              int updateIndex = (index / 2).floor();
+              vm.network.layers[updateIndex].resize(newSize);
+              setState(() {});
             },
             child: Card(
               child: Padding(

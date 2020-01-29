@@ -33,7 +33,7 @@ class Layer {
   List<double> get gamma => this.neurons.map<double>((n) => n.gamma).toList();
   List<double> get outputs => this.neurons.map<double>((n) => n.output).toList();
 
-  Layer(int inputCount, int outputCount, {this.normalizationFunction = ActivationFunction.sigmoid}) {
+  Layer(int inputCount, int outputCount) {
     this.neurons ??= List<Neuron>();
 
     // Add a new list of weights for each neuron
@@ -47,7 +47,15 @@ class Layer {
     }
   }
 
-  void changeNormalization(ActivationFunction n) => this.normalizationFunction = n;
+  void resize(int newSize){
+    if (newSize > this.neurons.length){
+      for (int i = this.neurons.length; i<newSize; i++){
+        this.neurons.add(Neuron(this.neurons[0].weights.length));
+      }
+    } else {
+      this.neurons = this.neurons.take(newSize).toList();
+    }
+  }
 
   List<double> forwardPropagation(List<double> inputs) {
     for (Neuron neuron in neurons) {
