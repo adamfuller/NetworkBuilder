@@ -204,13 +204,13 @@ class MainViewModel {
   }
 
   void networkOutputsChanged(String s) {
-    print(s);
+    // print(s);
     onDataChanged();
   }
 
   /// Not really used yet?
   void networkInputsChanged(String s) {
-    print(s);
+    // print(s);
     onDataChanged();
   }
 }
