@@ -331,6 +331,7 @@ class _MainViewState extends State<MainView> {
               String nextSizeString = await showInputDialog(
                 context,
                 "Update layer size?",
+                keyboardType: TextInputType.number,
                 subtitle: "How many neurons should be in this layer?",
               );
               if (nextSizeString == null || nextSizeString.isEmpty) return;
