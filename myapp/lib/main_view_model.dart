@@ -13,10 +13,11 @@ class MainViewModel {
   bool isLoading = true;
   int layerCount = 0;
   Network network;
-  Timer trainingTimer;
-  bool isTraining = false;
-  String copyButtonText = "Copy";
-  String copyJsonButtonText = "Copy Network";
+  Timer trainingTimer = Timer(Duration(seconds: 0), (){})..cancel();
+  // bool isTraining = false;
+  Color copyOutputColor = Colors.black;
+  String copyJsonButtonText = "Network";
+  String copyMatrixButtonText = "Matrix";
   TextEditingController networkInputsController = TextEditingController();
   TextEditingController networkOutputsController = TextEditingController();
   List<List<double>> inputsFromText;
@@ -24,6 +25,7 @@ class MainViewModel {
   List<List<double>> testOutputs;
   List<int> layers = List<int>();
   String _testOutputString;
+  bool isValidTrainingData = true;
 
   //
   // Getters
@@ -78,7 +80,7 @@ class MainViewModel {
     updateTrainingData();
 
     this.trainingTimer?.cancel();
-    isTraining = false;
+    // isTraining = false;
 
     _assignNetwork();
 
@@ -86,20 +88,18 @@ class MainViewModel {
     onDataChanged();
   }
 
+  void networkOutputsChanged(String s) => updateTrainingData();
+  void networkInputsChanged(String s) => updateTrainingData();
+
   void _assignNetwork() {
     this.network = Network(
       layers,
-      activationFunction: ActivationFunction.softplus,
+      activationFunction: ActivationFunction.tanh,
     );
   }
 
   void resetNetwork() {
-    network.timesRun = 0;
-    for (Layer layer in network.layers) {
-      for (Neuron neuron in layer.neurons) {
-        neuron.reset();
-      }
-    }
+    network.reset();
     onDataChanged();
   }
 
@@ -108,9 +108,47 @@ class MainViewModel {
     copyJsonButtonText = "Copied";
     onDataChanged();
     Timer(Duration(seconds: 1), () {
-      copyJsonButtonText = "Copy Network";
+      copyJsonButtonText = "Network";
       onDataChanged();
     });
+  }
+
+  void saveMatrixPressed() {
+    Clipboard.setData(ClipboardData(text: network.matrixString));
+    copyMatrixButtonText = "Copied";
+    onDataChanged();
+    Timer(Duration(seconds: 1), () {
+      copyMatrixButtonText = "Matrix";
+      onDataChanged();
+    });
+  }
+
+  void toggleTraining() {
+    onDataChanged();
+    if (!trainingTimer.isActive) {
+      trainingTimer = Timer.periodic(Duration(milliseconds: 100), (t) {
+        _testOutputString = null;
+        testOutputs.clear();
+        for (int j = 0; j < outputsFromText.length; j++) {
+          testOutputs.add(this.network.forwardPropagation(inputsFromText[j]));
+          this.network.backPropagation(outputsFromText[j]);
+        }
+        onDataChanged();
+      });
+    } else {
+      trainingTimer.cancel();
+    }
+  }
+
+  void testPressed() {
+    _testOutputString = null;
+    // Check if the data is there
+    if (inputsFromText.isEmpty) updateTrainingData();
+    testOutputs.clear();
+    for (List<double> input in inputsFromText) {
+      testOutputs.add(network.forwardPropagation(input));
+    }
+    onDataChanged();
   }
 
   //
@@ -135,51 +173,51 @@ class MainViewModel {
     this.networkOutputsController.dispose();
   }
 
-  void outputPressed() {
-    print(this.network.feedForward([0, 1, 0]));
-  }
-
-  void toggleTraining() {
-    isTraining = !isTraining;
-    onDataChanged();
-    if (isTraining) {
-      trainingTimer = Timer.periodic(Duration(milliseconds: 100), (t) {
-        _testOutputString = null;
-        testOutputs.clear();
-        for (int j = 0; j < outputsFromText.length; j++) {
-          testOutputs.add(this.network.feedForward(inputsFromText[j]));
-          this.network.backPropagation(outputsFromText[j]);
-        }
-        onDataChanged();
-      });
-    } else {
-      trainingTimer.cancel();
-    }
-  }
-
-  void testPressed() {
-    _testOutputString = null;
-    // Check if the data is there
-    if (inputsFromText.isEmpty) updateTrainingData();
-    testOutputs.clear();
-    for (List<double> input in inputsFromText) {
-      testOutputs.add(network.feedForward(input));
-    }
-    onDataChanged();
-  }
+  
 
   void updateTrainingData() {
     // Make sure there is some data
-    if (networkInputsController.text.isEmpty) return;
-    if (networkOutputsController.text.isEmpty) return;
+    if (networkInputsController.text.isEmpty) {
+      isValidTrainingData = false;
+      onDataChanged();
+      return;
+    }
+    if (networkOutputsController.text.isEmpty) {
+      isValidTrainingData = false;
+      onDataChanged();
+      return;
+    }
 
     // Update inputs
-    inputsFromText?.clear();
-    inputsFromText = _parseDoubleList(networkInputsController.text);
+    List<List<double>> parsedInputs = _parseDoubleList(networkInputsController.text);
 
     // Update expected outputs
-    outputsFromText?.clear();
-    outputsFromText = _parseDoubleList(networkOutputsController.text);
+    List<List<double>> parsedOutputs = _parseDoubleList(networkOutputsController.text);
+
+    // if any are null or they don't match they aren't valid
+    if (parsedInputs == null || parsedOutputs == null || parsedInputs?.length != parsedOutputs?.length) {
+      isValidTrainingData = false;
+      onDataChanged();
+      return;
+    }
+
+    // Make sure all internal lengths match
+    for (int i = 0; i < parsedInputs.length - 1; i++) {
+      if (parsedInputs[i].length != parsedInputs[i + 1].length) {
+        isValidTrainingData = false;
+        onDataChanged();
+        return;
+      }
+      if (parsedOutputs[i].length != parsedOutputs[i + 1].length) {
+        isValidTrainingData = false;
+        onDataChanged();
+        return;
+      }
+    }
+
+    inputsFromText = parsedInputs;
+    outputsFromText = parsedOutputs;
+
     // bool shouldReassign = false;
     if (layers.last != outputsFromText[0].length) {
       layers.last = outputsFromText[0].length;
@@ -191,8 +229,7 @@ class MainViewModel {
       // shouldReassign = true;
     }
 
-    // if (shouldReassign) _assignNetwork();
-
+    isValidTrainingData = true;
     onDataChanged();
   }
 
@@ -208,18 +245,10 @@ class MainViewModel {
           double.tryParse(e),
         ),
       );
+      // cancel if any wasn't able to be parsed
+      if (_output.last.any((e) => e == null)) return null;
     }
+
     return _output;
-  }
-
-  void networkOutputsChanged(String s) {
-    // print(s);
-    onDataChanged();
-  }
-
-  /// Not really used yet?
-  void networkInputsChanged(String s) {
-    // print(s);
-    onDataChanged();
   }
 }

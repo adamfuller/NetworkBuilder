@@ -5,12 +5,6 @@ class Layer {
 
   List<Neuron> neurons;
 
-  /// Weights per neuron
-  // int inputCount;
-
-  /// Number or neurons
-  // int outputCount;
-
   List<List<double>> get weights => this.neurons.map<List<double>>((n) => n.weights).toList();
 
   /// Flip the weights so they are weights[weightIndex][neuronIndex]
@@ -30,7 +24,7 @@ class Layer {
     return ws;
   }
 
-  List<double> get gamma => this.neurons.map<double>((n) => n.gamma).toList();
+  List<double> get delta => this.neurons.map<double>((n) => n.delta).toList();
   List<double> get outputs => this.neurons.map<double>((n) => n.output).toList();
 
   Layer(int inputCount, int outputCount) {
@@ -43,14 +37,14 @@ class Layer {
   }
 
   factory Layer.fromJson(Map<String, dynamic> map) {
-    Layer l = Layer(0,0);
+    Layer l = Layer(0, 0);
     l.neurons = map["neurons"].map<Neuron>((nString) => Neuron.fromJson(nString)).toList();
     return l;
   }
 
   Map<String, dynamic> toJson() {
     return {
-      "neurons": this.neurons.map<Map<String,dynamic>>((n)=>n.toJson()).toList(),
+      "neurons": this.neurons.map<Map<String, dynamic>>((n) => n.toJson()).toList(),
     };
   }
 
@@ -65,9 +59,7 @@ class Layer {
   }
 
   List<double> forwardPropagation(List<double> inputs) {
-    for (Neuron neuron in neurons) {
-      neuron.forwardPropagation(inputs);
-    }
+    neurons.forEach((n) => n.forwardPropagation(inputs));
 
     return outputs;
   }
@@ -78,17 +70,15 @@ class Layer {
     }
   }
 
-  void backPropagationHidden(List<double> gammaForward, List<List<double>> weightsForward) {
+  void backPropagationHidden(Layer nextLayer) {
     for (int i = 0; i < neurons.length; i++) {
-      neurons[i].backPropagationHidden(gammaForward, weightsForward[i]);
+      neurons[i].backPropagationHidden(nextLayer.delta, nextLayer.weightsByNeuron[i]);
     }
   }
 
   void updateWeights() {
-    for (int i = 0; i < this.neurons.length; i++) {
-      for (int j = 0; j < this.neurons[i].weightAdj.length; j++) {
-        neurons[i].weights[j] += neurons[i].weightAdj[j] * Network.learningFactor;
-      }
+    for (Neuron neuron in neurons){
+      neuron.applyAdjustments();
     }
   }
 }

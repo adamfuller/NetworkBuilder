@@ -3,7 +3,7 @@ part of "network.dart";
 class Neuron {
   List<double> weights;
   List<double> weightAdj;
-  double gamma = 0.0;
+  double delta = 0.0;
   double error = 0.0;
   List<double> inputs;
   double output = 0.0;
@@ -27,7 +27,7 @@ class Neuron {
     n.inputs = map["inputs"];
     n.error = map["error"];
     n.output = map["output"];
-    n.gamma = map["gamma"];
+    n.delta = map["delta"];
     return n;
   }
 
@@ -38,7 +38,7 @@ class Neuron {
       "inputs": inputs.map<double>((n) => n.isNaN ? 1 : n).toList(),
       "error": (error?.isNaN) ?? true ? 0 : error,
       "output": this.output?.isNaN ?? true ? 0 : this.output,
-      "gamma": gamma?.isNaN ?? true ? 0 : gamma,
+      "delta": delta?.isNaN ?? true ? 0 : delta,
     };
     return output;
   }
@@ -49,63 +49,75 @@ class Neuron {
     }
   }
 
-  double sigmoid(double x) => 1.0 / (1.0 + exp(-x));
-  double sigmoidDerivative(double x) => sigmoid(x) * (1.0 - sigmoid(x));
-  double sigmoidishDerivative(double x) => x * (1.0 - x);
+  double _sigmoid(double x) => 1.0 / (1.0 + exp(-x));
+  double _sigmoidDerivative(double x) => _sigmoid(x) * (1.0 - _sigmoid(x));
+  double _sigmoidishDerivative(double x) => x * (1.0 - x);
 
-  double tanh(double x) => (exp(x) - exp(-x)) / (exp(x) + exp(-x));
-  double tanHDerivative(double x) => 1.0 - (x * x);
+  double _tanh(double x) => (exp(x) - exp(-x)) / (exp(x) + exp(-x));
+  double _tanhDerivative(double x) => 1.0 - (x * x);
 
-  double relu(double x) => x > 0.0 ? x : 0.0;
-  double reluDerivative(double x) => x > 0.0 ? 1.0 : 0.0;
+  double _relu(double x) => x > 0.0 ? x : 0.0;
+  double _reluDerivative(double x) => x > 0.0 ? 1.0 : 0.0;
 
-  double leakyRelu(double x) => x > 0.0 ? x : 0.1 * x;
-  double leakyReluDerivative(double x) => x > 0.0 ? 1.0 : 0.1;
+  double _leakyRelu(double x) => x > 0.0 ? x : 0.1 * x;
+  double _leakyReluDerivative(double x) => x > 0.0 ? 1.0 : 0.1;
 
-  double softplus(double x) => log(1 + exp(x));
-  double softplusDerivative(double x) => 1.0 / (1.0 + exp(-x));
+  double _softplus(double x) {
+    var val = log(1 + exp(x));
+    if (val.isNaN || val.isInfinite) {
+      return (2 * Network.r.nextDouble() - 1);
+    }
+    return val;
+  }
 
-  double normalize(double x) {
+  double _softplusDerivative(double x) {
+    var val = 1.0 / (1.0 + exp(-x));
+    return val;
+  }
+
+  double _normalize(double x) {
     switch (Network.activationFunction) {
       case ActivationFunction.relu:
-        return relu(x);
+        return _relu(x);
       case ActivationFunction.leakyRelu:
-        return leakyRelu(x);
+        return _leakyRelu(x);
       case ActivationFunction.sigmoid:
-        return sigmoid(x);
+        return _sigmoid(x);
       case ActivationFunction.sigmoidish:
-        return sigmoid(x);
+        return _sigmoid(x);
       case ActivationFunction.tanh:
-        return tanh(x);
-      case ActivationFunction.softplus:
-        return softplus(x);
+        return _tanh(x);
+      // case ActivationFunction.softplus:
+      //   return _softplus(x);
       default:
-        return sigmoid(x);
+        return _sigmoid(x);
     }
   }
 
-  double normalizeDerivative(double x) {
+  double _normalizeDerivative(double x) {
     switch (Network.activationFunction) {
       case ActivationFunction.relu:
-        return reluDerivative(x);
+        return _reluDerivative(x);
       case ActivationFunction.leakyRelu:
-        return leakyReluDerivative(x);
+        return _leakyReluDerivative(x);
       case ActivationFunction.sigmoid:
-        return sigmoidDerivative(x);
+        return _sigmoidDerivative(x);
       case ActivationFunction.tanh:
-        return tanHDerivative(x);
-      case ActivationFunction.softplus:
-        return softplusDerivative(x);
+        return _tanhDerivative(x);
+      // case ActivationFunction.softplus:
+      //   return _softplusDerivative(x);
       case ActivationFunction.sigmoidish:
-        return sigmoidishDerivative(x);
+        return _sigmoidishDerivative(x);
       default:
-        return sigmoidDerivative(x);
+        return _sigmoidDerivative(x);
     }
   }
 
-  double forwardPropagation(List<double> input) {
+  ///Adjust weights to comply with a given input
+  void _adjustForInput(List<double> input) {
     this.inputs = input;
-    output = 0;
+    if (this.weights.length == input.length) return;
+
     // Adjust if input is too large
     if (input.length >= weights.length) {
       for (int i = weights.length; i < input.length; i++) {
@@ -118,42 +130,75 @@ class Neuron {
       weights = weights.take(weights.length - (weights.length - inputs.length)).toList();
       weightAdj = weightAdj.take(weightAdj.length - (weightAdj.length - inputs.length)).toList();
     }
+  }
+
+  /// Calculate the output of this neuron for a given input
+  double forwardPropagation(List<double> input) {
+    output = 0;
+    // Adjust the weights based on the input
+    _adjustForInput(input);
+
+    //
+    // Calculate the output
+    //
     for (int i = 0; i < inputs.length; i++) {
       output += inputs[i] * weights[i];
     }
-    output = normalize(output);
+
+    // Normalize the output
+    output = _normalize(output);
     return output;
   }
 
-  void backPropagationOutput(double expected) {
-    error = expected - output;
-    gamma = error * normalizeDerivative(output);
+  /// Adjust output neuron based on an expected output
+  void backPropagationOutput(double expectedOutput) {
+    // Difference between expected and calculated output
+    error = expectedOutput - output;
+
+    // Adjust for input based on error * gradient of normalized(output);
+    delta = error * _normalizeDerivative(output);
+
+    if (delta.isNaN) {
+      print("NAN delta!");
+    }
+
     // For each input calculate the new corresponding weight
+    weightAdj = inputs.map<double>((i) => i * delta).toList();
+  }
+
+  void backPropagationHidden(List<double> deltaForward, List<double> weightsForward) {
+    delta = 0;
+    // Pulling each weight corresponding to this neuron in the layer
+    for (int j = 0; j < deltaForward.length; j++) {
+      delta += deltaForward[j] * weightsForward[j];
+    }
+    delta *= _normalizeDerivative(output);
+
+    // Assign the adjustments
     for (int i = 0; i < inputs.length; i++) {
       if (weightAdj.length <= i) weightAdj.add(0.0);
-      weightAdj[i] = gamma * inputs[i];
+      weightAdj[i] = delta * inputs[i];
     }
   }
 
-  void backPropagationHidden(List<double> gammaForward, List<double> weightsForward) {
-    gamma = 0;
-    // Pulling each weight corresponding to this neuron in the layer
-    for (int j = 0; j < gammaForward.length; j++) {
-      gamma += gammaForward[j] * weightsForward[j];
+  void applyAdjustments() {
+    double maxWeight = 0;
+    for (int i = 0; i < this.weights.length; i++) {
+      weights[i] += weightAdj[i] * Network.learningFactor;
+      if (weights[i].abs() > maxWeight) maxWeight = weights[i].abs();
     }
-    gamma *= normalizeDerivative(output);
-    for (int i = 0; i < inputs.length; i++) {
-      if (weightAdj.length <= i) weightAdj.add(0.0);
-      weightAdj[i] = gamma * inputs[i];
+    // normalize the weights??
+    for (int i = 0; i < weights.length; i++) {
+      weights[i] /= maxWeight;
     }
   }
 }
 
 enum ActivationFunction {
+  leakyRelu,
+  relu,
   sigmoid,
   sigmoidish,
   tanh,
-  relu,
-  softplus,
-  leakyRelu,
+  // softplus,
 }

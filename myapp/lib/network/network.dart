@@ -15,12 +15,22 @@ class Network {
   int timesRun = 0;
   double averagePercentError = 0;
   List<double> pastErrors = List<double>();
-  List<double> lastOutput;
-
-  // double get learningFactor => _learningFactor/(timesRun+1) + _learningFactor/10;
+  List<double> lastOutput = List<double>();
 
   String get jsonString => jsonEncode(this.toJson());
   String get prettyJsonString => JsonEncoder.withIndent('  ').convert(this.toJson());
+  String get matrixString => matrix.toString();
+
+  List<List<List<double>>> get matrix {
+    List<List<List<double>>> values = List<List<List<double>>>(this.layers.length);
+    for (int layerIndex = 0; layerIndex < this.layers.length; layerIndex++) {
+      values[layerIndex] = List<List<double>>();
+      for (int neuronIndex = 0; neuronIndex < layers[layerIndex].neurons.length; neuronIndex++) {
+        values[layerIndex].add(layers[layerIndex].neurons[neuronIndex].weights);
+      }
+    }
+    return values;
+  }
 
   int get maxLayerSize {
     int max = 0;
@@ -38,7 +48,7 @@ class Network {
     ActivationFunction activationFunction,
     this.layers,
   }) {
-    Network.activationFunction ??= ActivationFunction.sigmoid;
+    Network.activationFunction = activationFunction ?? ActivationFunction.sigmoid;
     this.layers ??= List<Layer>();
     // Add a layer for each count
     for (int i = 0; i < hiddenLayerNeuronCount.length - 1; i++) {
@@ -71,24 +81,37 @@ class Network {
 
   Map<String, dynamic> toJson() {
     var output = {
-      "layers": this.layers.map<Map<String, dynamic>>((l) => l.toJson()).toList(),
       "timesRun": this.timesRun,
       "learningFactor": Network.learningFactor,
       "hiddenLayerNeuronCount": this.hiddenLayerNeuronCount,
-      "averagePercentError": this.averagePercentError.isNaN ? 0 : this.averagePercentError,
-      "pastErrors": this.pastErrors?.where((v) => !v.isNaN)?.toList(),
-      "lastOutput": this.lastOutput?.where((v) => !v.isNaN)?.toList(),
+      "averagePercentError": this.averagePercentError,
+      "pastErrors": this.pastErrors,
+      "lastOutput": this.lastOutput,
+      "layers": this.layers.map<Map<String, dynamic>>((l) => l.toJson()).toList(),
     };
     return output;
   }
 
+  void reset() {
+    timesRun = 0;
+    pastErrors.clear();
+    averagePercentError = 0;
+
+    for (Layer layer in layers) {
+      for (Neuron neuron in layer.neurons) {
+        neuron.reset();
+      }
+    }
+  }
+
   /// Returns the output of this network for input __inputs__
-  List<double> feedForward(List<double> inputs) {
+  List<double> forwardPropagation(List<double> inputs) {
     List<double> output;
 
-    this.layers.forEach((layer) {
+    for (Layer layer in layers) {
       output = layer.forwardPropagation(output ?? inputs);
-    });
+    }
+
     lastOutput = output;
 
     return output;
@@ -96,35 +119,38 @@ class Network {
 
   void backPropagation(List<double> expected) {
     timesRun++;
-    double expectedSum = 0;
-    for (double v in expected) expectedSum += v;
-    double calculatedSum = 0;
-    for (double v in this.layers.last.outputs) calculatedSum += v;
-    if (expectedSum != 0) {
-      double currentError = expectedSum > 0 ? (expectedSum - calculatedSum) / expectedSum * 100 : 0;
-      pastErrors.add(currentError);
-      this.averagePercentError = 0;
-      for (int i = 0; i < pastErrors.length; i++) {
-        averagePercentError += pastErrors[i];
-      }
-      averagePercentError /= pastErrors.length;
-      if (pastErrors.length > 5 && currentError > 0) {
-        pastErrors.removeAt(0);
-      }
-    }
-    //
-    // End of error calculation
-    //
+    _calculateError(expected);
 
     // Calculate output layer
     layers[layers.length - 1].backPropagationOutput(expected);
 
     // calculate input layers
     for (int i = this.layers.length - 2; i >= 0; i--) {
-      layers[i].backPropagationHidden(layers[i + 1].gamma, layers[i + 1].weightsByNeuron);
+      layers[i].backPropagationHidden(layers[i + 1]);
     }
 
     // Update all the weights
     this.layers.forEach((l) => l.updateWeights());
+  }
+
+  /// Calculate the error of the last output
+  void _calculateError(List<double> expected) {
+    double expectedSum = 0;
+    for (double v in expected) expectedSum += v;
+    double calculatedSum = 0;
+    for (double v in layers.last.outputs) calculatedSum += v;
+    if (expectedSum != 0) {
+      double currentError = expectedSum > 0 ? (expectedSum - calculatedSum) / expectedSum * 100 : 0;
+      pastErrors.add(currentError);
+      // reset average
+      averagePercentError = 0;
+      // sum up errors
+      pastErrors.forEach((e) => averagePercentError += e);
+      // divide by length
+      averagePercentError /= pastErrors.length;
+      if (pastErrors.length > 5 && currentError > 0) {
+        pastErrors.removeAt(0);
+      }
+    }
   }
 }

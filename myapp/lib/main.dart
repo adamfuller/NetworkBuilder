@@ -2,7 +2,6 @@ library app;
 
 import 'dart:async';
 
-import 'package:custom_widget/custom_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -15,7 +14,6 @@ part 'main_view_model.dart';
 void main() => runApp(MainApp());
 
 class MainApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -58,34 +56,43 @@ class _MainViewState extends State<MainView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Padding(
-          padding: EdgeInsets.all(4),
-          child: RaisedButton(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Text("${vm.copyJsonButtonText}"),
-            onPressed: vm.savePressed,
-          ),
-        ),
-        actions: <Widget>[
+        title: Row(children: [
           Padding(
-            padding: const EdgeInsets.all(4),
-            child: RaisedButton(
+            padding: EdgeInsets.all(4),
+            child: RaisedButton.icon(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: Text("Reset"),
-              onPressed: vm.resetNetwork,
+              icon: Icon(Icons.content_copy),
+              label: Text("${vm.copyJsonButtonText}"),
+              onPressed: vm.savePressed,
             ),
           ),
           Padding(
             padding: EdgeInsets.all(4),
-            child: RaisedButton(
+            child: RaisedButton.icon(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: Text("${vm.isTraining ? "Stop Training" : "Start Training"}"),
+              icon: Icon(Icons.content_copy),
+              label: Text("${vm.copyMatrixButtonText}"),
+              onPressed: vm.saveMatrixPressed,
+            ),
+          ),
+
+        ]),
+        actions: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(4),
+            child: IconButton(
+              icon: Icon(Icons.refresh),
+              onPressed: vm.resetNetwork,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(4),
+            child: IconButton(
+              icon: Icon(vm.trainingTimer.isActive ? Icons.pause_circle_outline : Icons.play_circle_outline),
               onPressed: vm.toggleTraining,
             ),
           ),
@@ -124,8 +131,6 @@ class _MainViewState extends State<MainView> {
         "Activation Function, Learning Factor, Neurons/Layer",
         style: TextStyle(color: Theme.of(context).textTheme.subtitle.color.withAlpha(125)),
       ),
-      // leading: Text("Settings"),
-      // trailing: Icon(Icons.arrow_downward),
       children: <Widget>[
         _getFunctionPicker(),
         Center(
@@ -141,10 +146,10 @@ class _MainViewState extends State<MainView> {
     return ExpansionTile(
       leading: Icon(Icons.edit),
       title: Text("Edit Training Data"),
-      subtitle: (vm.inputsFromText.length == vm.outputsFromText.length)
-          ? null
+      subtitle: (vm.isValidTrainingData)
+          ? Text("Valid training data",style: TextStyle(color: Colors.blue),)
           : Text(
-              "Input and Output length don't match!",
+              "Invalid training data!",
               style: TextStyle(color: Colors.red),
             ),
       trailing: RaisedButton.icon(
@@ -152,7 +157,7 @@ class _MainViewState extends State<MainView> {
           borderRadius: BorderRadius.circular(30),
         ),
         icon: Icon(Icons.done),
-        label: Text("Update"),
+        label: Text("Verify"),
         onPressed: vm.updateTrainingData,
       ),
       children: <Widget>[
@@ -161,7 +166,7 @@ class _MainViewState extends State<MainView> {
           child: ExpansionTile(
             title: Text("Input Training Set (${vm.inputsFromText.length})"),
             subtitle: Text(
-              "Comma separated, newline indicates different inputs",
+              "CSV Format",
               style: TextStyle(color: Theme.of(context).textTheme.subtitle.color.withAlpha(125)),
             ),
             children: <Widget>[
@@ -172,12 +177,6 @@ class _MainViewState extends State<MainView> {
                 controller: vm.networkInputsController,
                 onChanged: vm.networkInputsChanged,
                 textInputAction: TextInputAction.newline,
-                onEditingComplete: () {
-                  // print("F");
-                },
-                onSubmitted: (s) {
-                  // print(s);
-                },
               ),
             ],
           ),
@@ -187,7 +186,7 @@ class _MainViewState extends State<MainView> {
           child: ExpansionTile(
             title: Text("Expected Outputs (${vm.outputsFromText.length})"),
             subtitle: Text(
-              "Comma separated, newline indicates different outputs",
+              "CSV Format",
               style: TextStyle(color: Theme.of(context).textTheme.subtitle.color.withAlpha(125)),
             ),
             children: <Widget>[
@@ -212,20 +211,18 @@ class _MainViewState extends State<MainView> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          RaisedButton.icon(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
+          IconButton(
+            color: vm.copyOutputColor,
+            hoverColor: Colors.transparent,
             icon: Icon(Icons.content_copy),
-            label: Text("${vm.copyButtonText}"),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: vm.testOutputString));
               setState(() {
-                vm.copyButtonText = "Copied";
+                vm.copyOutputColor = Colors.blue;
               });
               Timer(Duration(seconds: 1), () {
                 setState(() {
-                  vm.copyButtonText = "Copy";
+                  vm.copyOutputColor = Colors.black;
                 });
               });
             },
@@ -295,7 +292,7 @@ class _MainViewState extends State<MainView> {
                 vm.network.layers.insert(insertIndex, Layer(0, neuronCount));
                 // Feed it through and update
                 setState(() {
-                  vm.network.feedForward(sample);
+                  vm.network.forwardPropagation(sample);
                   vm.network.timesRun = 0;
                 });
               },
@@ -323,7 +320,7 @@ class _MainViewState extends State<MainView> {
                 // Remove the layer
                 vm.network.layers.removeAt(removeIndex);
                 // Pass the sample data to correct weights
-                vm.network.feedForward(sample);
+                vm.network.forwardPropagation(sample);
                 vm.network.timesRun = 0;
                 setState(() {});
               }
@@ -361,16 +358,16 @@ class _MainViewState extends State<MainView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Padding(
+        const Padding(
           padding: const EdgeInsets.only(right: 8),
-          child: Text("Activation Function:"),
+          child: const Text("Activation Function:"),
         ),
         DropdownButton<ActivationFunction>(
           value: Network.activationFunction,
-          icon: Icon(Icons.arrow_downward),
+          icon: const Icon(Icons.arrow_downward),
           iconSize: 24,
           elevation: 16,
-          style: TextStyle(color: Colors.blue),
+          style: const TextStyle(color: Colors.blue),
           underline: Container(
             height: 2,
             color: Colors.blueAccent,
