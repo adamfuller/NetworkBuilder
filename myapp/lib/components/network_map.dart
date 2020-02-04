@@ -16,7 +16,7 @@ class NetworkMap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomWidget(
-      size: MediaQuery.of(context).size.shortestSide,
+      size: MediaQuery.of(context).size.shortestSide * 3 / 4,
       doesRepaint: false,
       onPaint: (c, s, d) {
         Paint linePaint = Paint();

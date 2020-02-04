@@ -16,6 +16,13 @@ void main() => runApp(MainApp());
 class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Set orientations to horizontal
+    SystemChrome.setPreferredOrientations(
+      [
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ],
+    );
     return MaterialApp(
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -29,7 +36,7 @@ class MainApp extends StatelessWidget {
 class MainView extends StatefulWidget {
   MainView();
 
-  _MainViewState createState() => new _MainViewState();
+  _MainViewState createState() => _MainViewState();
 }
 
 class _MainViewState extends State<MainView> {
@@ -57,69 +64,37 @@ class _MainViewState extends State<MainView> {
     return Scaffold(
       appBar: AppBar(
         title: Row(children: [
-          Padding(
-            padding: EdgeInsets.all(4),
-            child: RaisedButton.icon(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              icon: Icon(Icons.content_copy),
-              label: Text("${vm.copyJsonButtonText}"),
-              onPressed: vm.savePressed,
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(4),
-            child: RaisedButton.icon(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              icon: Icon(Icons.content_copy),
-              label: Text("${vm.copyMatrixButtonText}"),
-              onPressed: vm.saveMatrixPressed,
-            ),
-          ),
+          _getRoundedCopyButton(vm.copyJsonButtonText, vm.saveJsonPressed),
+          _getRoundedCopyButton(vm.copyMatrixButtonText, vm.saveMatrixPressed),
         ]),
         actions: <Widget>[
-          Padding(
-            padding: EdgeInsets.all(4),
-            child: RaisedButton.icon(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              icon: Icon(Icons.content_copy),
-              label: Text("${vm.copyJsonButtonText}"),
-              onPressed: vm.savePressed,
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(4),
-            child: RaisedButton.icon(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              icon: Icon(Icons.content_copy),
-              label: Text("${vm.copyMatrixButtonText}"),
-              onPressed: vm.saveMatrixPressed,
-            ),
-          ),
-          Padding(
+          IconButton(
             padding: const EdgeInsets.all(4),
-            child: IconButton(
-              icon: Icon(Icons.refresh),
-              onPressed: vm.resetNetwork,
-            ),
+            icon: Icon(Icons.refresh),
+            onPressed: vm.resetNetwork,
           ),
-          Padding(
+          IconButton(
             padding: const EdgeInsets.all(4),
-            child: IconButton(
-              icon: Icon(vm.trainingTimer.isActive ? Icons.pause_circle_outline : Icons.play_circle_outline),
-              onPressed: vm.toggleTraining,
-            ),
+            icon: Icon(vm.trainingTimerIcon),
+            onPressed: vm.toggleTraining,
           ),
         ],
       ),
       body: vm.isLoading ? CircularProgressIndicator() : _getBody(),
+    );
+  }
+
+  Widget _getRoundedCopyButton(String text, Function onPressed) {
+    return Padding(
+      padding: EdgeInsets.all(4),
+      child: RaisedButton.icon(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
+        ),
+        icon: Icon(Icons.content_copy),
+        label: Text(text),
+        onPressed: onPressed,
+      ),
     );
   }
 
@@ -128,18 +103,95 @@ class _MainViewState extends State<MainView> {
       child: Column(
         children: [
           _getNetworkSettings(),
-          _getTrainingDataInputs(),
-          _getTestOutputs(),
           vm.network?.layers[0]?.neurons[0].output != null
               ? Center(
                   child: Text("Average % Error: ${vm.network.averagePercentError.toStringAsFixed(8)}"),
                 )
               : null,
-          Center(
-            child: Text("Times Run: ${vm.network.timesRun}"),
+          Text(
+            "Times Run: ${vm.network.timesRun}",
+            textAlign: TextAlign.center,
           ),
-          _getNetworkMap(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+              _getTrainingFlexible(),
+              Flexible(
+                flex: 2,
+                child: _getNetworkMap(),
+              ),
+              Flexible(
+                flex: 1,
+                fit: FlexFit.tight,
+                child: Card(
+                  child: Container(
+                    height: MediaQuery.of(context).size.shortestSide / 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Text("${vm.testOutputString}"),
+                    ),
+                  ),
+                ),
+              )
+            ],
+          ),
         ]..removeWhere((w) => w == null),
+      ),
+    );
+  }
+
+  Widget _getTrainingFlexible() {
+    return Flexible(
+      flex: 1,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            "Training Input " + vm.trainingDataValidityString,
+            style: TextStyle(color: vm.isValidTrainingData ? Colors.black : Colors.red),
+          ),
+          Container(
+            height: MediaQuery.of(context).size.shortestSide / 3,
+            child: _getMultilineTextCard(
+              vm.networkInputsController,
+              vm.networkInputsChanged,
+              "Input Data",
+            ),
+          ),
+          Text(
+            "Training Output " + vm.trainingDataValidityString,
+            style: TextStyle(color: vm.isValidTrainingData ? Colors.black : Colors.red),
+          ),
+          Container(
+            height: MediaQuery.of(context).size.shortestSide / 3,
+            child: _getMultilineTextCard(
+              vm.networkOutputsController,
+              vm.networkOutputsChanged,
+              "Output Data",
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _getMultilineTextCard(
+    TextEditingController controller,
+    Function(String) onchanged,
+    String hint,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: TextField(
+          keyboardType: TextInputType.multiline,
+          maxLines: null,
+          decoration: InputDecoration.collapsed(hintText: hint),
+          controller: controller,
+          onChanged: onchanged,
+          textInputAction: TextInputAction.newline,
+        ),
       ),
     );
   }
@@ -159,113 +211,6 @@ class _MainViewState extends State<MainView> {
         ),
         _getLearningRateSlider(),
         _getNeuronCounts(),
-      ],
-    );
-  }
-
-  Widget _getTrainingDataInputs() {
-    return ExpansionTile(
-      leading: Icon(Icons.edit),
-      title: Text("Edit Training Data"),
-      subtitle: (vm.isValidTrainingData)
-          ? Text(
-              "Valid training data",
-              style: TextStyle(color: Colors.blue),
-            )
-          : Text(
-              "Invalid training data!",
-              style: TextStyle(color: Colors.red),
-            ),
-      trailing: RaisedButton.icon(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
-        ),
-        icon: Icon(Icons.done),
-        label: Text("Verify"),
-        onPressed: vm.updateTrainingData,
-      ),
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
-          child: ExpansionTile(
-            title: Text("Input Training Set (${vm.inputsFromText.length})"),
-            subtitle: Text(
-              "CSV Format",
-              style: TextStyle(color: Theme.of(context).textTheme.subtitle.color.withAlpha(125)),
-            ),
-            children: <Widget>[
-              TextField(
-                keyboardType: TextInputType.multiline,
-                maxLines: null,
-                decoration: InputDecoration.collapsed(hintText: "Input Data"),
-                controller: vm.networkInputsController,
-                onChanged: vm.networkInputsChanged,
-                textInputAction: TextInputAction.newline,
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
-          child: ExpansionTile(
-            title: Text("Expected Outputs (${vm.outputsFromText.length})"),
-            subtitle: Text(
-              "CSV Format",
-              style: TextStyle(color: Theme.of(context).textTheme.subtitle.color.withAlpha(125)),
-            ),
-            children: <Widget>[
-              TextField(
-                keyboardType: TextInputType.multiline,
-                maxLines: null,
-                decoration: InputDecoration.collapsed(hintText: "Output Data"),
-                controller: vm.networkOutputsController,
-                onChanged: vm.networkOutputsChanged,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _getTestOutputs() {
-    return ExpansionTile(
-      leading: Icon(Icons.view_stream),
-      title: Text("Outputs"),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            color: vm.copyOutputColor,
-            hoverColor: Colors.transparent,
-            icon: Icon(Icons.content_copy),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: vm.testOutputString));
-              setState(() {
-                vm.copyOutputColor = Colors.blue;
-              });
-              Timer(Duration(seconds: 1), () {
-                setState(() {
-                  vm.copyOutputColor = Colors.black;
-                });
-              });
-            },
-          ),
-          Padding(
-            padding: EdgeInsets.all(2),
-          ),
-          RaisedButton.icon(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
-            icon: Icon(Icons.done),
-            label: Text("Test"),
-            onPressed: vm.testPressed,
-          ),
-        ],
-      ),
-      children: <Widget>[
-        Text("${vm.testOutputString}"),
       ],
     );
   }
@@ -388,14 +333,7 @@ class _MainViewState extends State<MainView> {
         ),
         DropdownButton<ActivationFunction>(
           value: Network.activationFunction,
-          icon: const Icon(Icons.arrow_downward),
-          iconSize: 24,
-          elevation: 16,
           style: const TextStyle(color: Colors.blue),
-          underline: Container(
-            height: 2,
-            color: Colors.blueAccent,
-          ),
           onChanged: (ActivationFunction newValue) {
             setState(() {
               Network.activationFunction = newValue;

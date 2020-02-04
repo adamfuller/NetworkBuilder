@@ -13,7 +13,7 @@ class MainViewModel {
   bool isLoading = true;
   int layerCount = 0;
   Network network;
-  Timer trainingTimer = Timer(Duration(seconds: 0), (){})..cancel();
+  Timer trainingTimer = Timer(Duration(seconds: 0), () {})..cancel();
   // bool isTraining = false;
   Color copyOutputColor = Colors.black;
   String copyJsonButtonText = "Network";
@@ -48,6 +48,10 @@ class MainViewModel {
 
     return _testOutputString;
   }
+
+  IconData get trainingTimerIcon => trainingTimer.isActive ? Icons.pause_circle_outline : Icons.play_circle_outline;
+
+  String get trainingDataValidityString => isValidTrainingData ? "(Valid)" : "(Invalid)";
 
   //
   // Constructor
@@ -103,7 +107,7 @@ class MainViewModel {
     onDataChanged();
   }
 
-  void savePressed() {
+  void saveJsonPressed() {
     Clipboard.setData(ClipboardData(text: network.prettyJsonString));
     copyJsonButtonText = "Copied";
     onDataChanged();
@@ -172,8 +176,6 @@ class MainViewModel {
     this.networkInputsController.dispose();
     this.networkOutputsController.dispose();
   }
-
-  
 
   void updateTrainingData() {
     // Make sure there is some data
