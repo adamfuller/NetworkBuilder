@@ -79,9 +79,30 @@ class _MainViewState extends State<MainView> {
               onPressed: vm.saveMatrixPressed,
             ),
           ),
-
         ]),
         actions: <Widget>[
+          Padding(
+            padding: EdgeInsets.all(4),
+            child: RaisedButton.icon(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              icon: Icon(Icons.content_copy),
+              label: Text("${vm.copyJsonButtonText}"),
+              onPressed: vm.savePressed,
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(4),
+            child: RaisedButton.icon(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              icon: Icon(Icons.content_copy),
+              label: Text("${vm.copyMatrixButtonText}"),
+              onPressed: vm.saveMatrixPressed,
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(4),
             child: IconButton(
@@ -147,7 +168,10 @@ class _MainViewState extends State<MainView> {
       leading: Icon(Icons.edit),
       title: Text("Edit Training Data"),
       subtitle: (vm.isValidTrainingData)
-          ? Text("Valid training data",style: TextStyle(color: Colors.blue),)
+          ? Text(
+              "Valid training data",
+              style: TextStyle(color: Colors.blue),
+            )
           : Text(
               "Invalid training data!",
               style: TextStyle(color: Colors.red),
