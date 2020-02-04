@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:custom_widget/custom_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:network_builder/network/network.dart';
@@ -58,10 +60,10 @@ class NetworkMap extends StatelessWidget {
               // position of point to the left
               // also index of the weight
               double weight = network.layers[i - 1].neurons[j].weights[x];
-              if (weight <= 1) weight *= 255;
+              if (weight.abs() <= 1) weight = weight.sign * sqrt(weight.abs()) * 255;
               else weight = (weight.sign*255);
-              int red = (weight > 0 ? weight : 0).floor();
-              int green = (weight < 0 ? weight : 0).floor();
+              int red = (weight < 0 ? weight.abs() : 0).floor();
+              int green = (weight > 0 ? weight : 0).floor();
               linePaint.color = Color.fromARGB(255, red, green, 0);
               c.drawLine(positions[i][j], positions[i - 1][x], linePaint);
             }

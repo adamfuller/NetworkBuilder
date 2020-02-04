@@ -38,7 +38,7 @@ class MainViewModel {
     _testOutputString = testOutputs?.fold<String>("", (s, output) {
       s += "[";
       for (int i = 0; i < output.length; i++) {
-        s += "${output[i]}";
+        s += output[i].toStringAsFixed(9);
         if (i < output.length - 1) s += ",";
       }
       s += "]";

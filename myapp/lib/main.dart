@@ -128,7 +128,9 @@ class _MainViewState extends State<MainView> {
                     height: MediaQuery.of(context).size.shortestSide / 2,
                     child: Padding(
                       padding: const EdgeInsets.all(8),
-                      child: Text("${vm.testOutputString}"),
+                      child: SingleChildScrollView(
+                        child: Text("${vm.testOutputString}"),
+                      ),
                     ),
                   ),
                 ),
