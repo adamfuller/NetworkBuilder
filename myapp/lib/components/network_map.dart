@@ -18,7 +18,7 @@ class NetworkMap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomWidget(
-      size: MediaQuery.of(context).size.shortestSide * 3 / 4,
+      size: Size.square(MediaQuery.of(context).size.shortestSide * 3 / 4),
       doesRepaint: false,
       onPaint: (c, s, d) {
         Paint linePaint = Paint();
@@ -33,15 +33,15 @@ class NetworkMap extends StatelessWidget {
           positions.add(List<Offset>());
           List<Layer> sub = network.layers.take(i).toList();
           Layer layer = (sub.length > 0 && i < network.layers.length) ? sub.last : null;
-          int nodeCount = layer != null ? layer.neurons.length : network.layers[0].neurons[0].weights.length;
+          int nodeCount = layer != null ? layer.neurons.length : network.layers[0].neurons[0].weights.length - 1;
           if (i == network.layers.length) {
             nodeCount = network.layers.last.neurons.length;
           }
           double spaceBetweenNodes = (s.height - 2 * spaceAround) / nodeCount;
           double layerXPosition = spaceBetweenLayers / 2 + i * spaceBetweenLayers;
           // Draw the nodes
-          for (int j = 0; j < nodeCount; j++) {
-            double nodeYPosition = spaceBetweenNodes / 2 + spaceBetweenNodes * j + spaceAround;
+          for (int j = 1; j < nodeCount+1; j++) {
+            double nodeYPosition = spaceBetweenNodes / 2 + spaceBetweenNodes * (j-1) + spaceAround;
             Rect nodeRect = Rect.fromLTWH(layerXPosition, nodeYPosition, diameter, diameter);
             nodePositions.add(nodeRect);
             // Add points

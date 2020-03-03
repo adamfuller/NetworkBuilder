@@ -17,6 +17,12 @@ dependencies:
   custom_widget:
     git:
       url: git://github.com/adamfuller/custom_widget.git
+      ref: 0.1.1
+
+  # neural_network:
+  #   git:
+  #     url: git://github.com/adamfuller/neural_network.git
+  #     ref: latest
 
 dev_dependencies:
   flutter_test:

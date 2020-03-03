@@ -26,6 +26,7 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        brightness: Brightness.dark,
       ),
       home: MainView(),
       debugShowCheckedModeBanner: false, // no debug banner
@@ -151,7 +152,7 @@ class _MainViewState extends State<MainView> {
         children: [
           Text(
             "Training Input " + vm.trainingDataValidityString,
-            style: TextStyle(color: vm.isValidTrainingData ? Colors.black : Colors.red),
+            style: TextStyle(color: vm.isValidTrainingData ? Theme.of(context).textTheme.button.color : Colors.red),
           ),
           Container(
             height: MediaQuery.of(context).size.shortestSide / 3,
@@ -163,7 +164,7 @@ class _MainViewState extends State<MainView> {
           ),
           Text(
             "Training Output " + vm.trainingDataValidityString,
-            style: TextStyle(color: vm.isValidTrainingData ? Colors.black : Colors.red),
+            style: TextStyle(color: vm.isValidTrainingData ? Theme.of(context).textTheme.button.color : Colors.red),
           ),
           Container(
             height: MediaQuery.of(context).size.shortestSide / 3,
@@ -335,7 +336,7 @@ class _MainViewState extends State<MainView> {
         ),
         DropdownButton<ActivationFunction>(
           value: Network.activationFunction,
-          style: const TextStyle(color: Colors.blue),
+          style: Theme.of(context).textTheme.button.apply(color:Colors.blue),
           onChanged: (ActivationFunction newValue) {
             setState(() {
               Network.activationFunction = newValue;

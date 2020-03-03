@@ -44,7 +44,7 @@ class Layer {
 
   Map<String, dynamic> toJson() {
     return {
-      "neurons": this.neurons.map<Map<String, dynamic>>((n) => n.toJson()).toList(),
+      "neurons": this.neurons?.map<Map<String, dynamic>>((n) => n.toJson())?.toList(),
     };
   }
 
@@ -58,7 +58,12 @@ class Layer {
     }
   }
 
+  void mutate(){
+    this.neurons.forEach((n) => n.mutate());
+  }
+
   List<double> forwardPropagation(List<double> inputs) {
+    // Feed the input through the neurons
     neurons.forEach((n) => n.forwardPropagation(inputs));
 
     return outputs;

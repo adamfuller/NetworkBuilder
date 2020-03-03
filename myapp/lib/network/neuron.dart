@@ -34,8 +34,8 @@ class Neuron {
   Map<String, dynamic> toJson() {
     var output = {
       "weights": weights.map<double>((n) => n.isNaN ? 1 : n).toList(),
-      "weightAdj": weightAdj.map<double>((n) => n.isNaN ? 0 : n).toList(),
-      "inputs": inputs.map<double>((n) => n.isNaN ? 1 : n).toList(),
+      "weightsAdj": weightAdj?.map<double>((n) => n.isNaN ? 0 : n)?.toList() ?? [],
+      "inputs": inputs?.map<double>((n) => n.isNaN ? 1 : n)?.toList() ?? [],
       "error": (error?.isNaN) ?? true ? 0 : error,
       "output": this.output?.isNaN ?? true ? 0 : this.output,
       "delta": delta?.isNaN ?? true ? 0 : delta,
@@ -46,6 +46,12 @@ class Neuron {
   void reset() {
     for (int i = 0; i < weights.length; i++) {
       weights[i] = (2 * Network.r.nextDouble() - 1);
+    }
+  }
+
+  void mutate() {
+    for (int i = 0; i<this.weights.length; i++){
+      weights[i] += (2 * Network.r.nextDouble() - 1) * Network.mutationFactor;
     }
   }
 
@@ -115,12 +121,15 @@ class Neuron {
 
   ///Adjust weights to comply with a given input
   void _adjustForInput(List<double> input) {
-    this.inputs = input;
-    if (this.weights.length == input.length) return;
+    // Add the bias to the input
+    this.inputs = [1.0].followedBy(input).toList();
+    
+    // If we already adjusted exit
+    if (this.weights.length == this.inputs.length) return;
 
     // Adjust if input is too large
-    if (input.length >= weights.length) {
-      for (int i = weights.length; i < input.length; i++) {
+    if (this.inputs.length >= weights.length) {
+      for (int i = weights.length; i < this.inputs.length; i++) {
         weights.add((2 * Network.r.nextDouble() - 1));
         weightAdj.add(0.0);
       }
@@ -135,7 +144,7 @@ class Neuron {
   /// Calculate the output of this neuron for a given input
   double forwardPropagation(List<double> input) {
     output = 0;
-    // Adjust the weights based on the input
+    // Adjust the weights based on the input and add bias
     _adjustForInput(input);
 
     //
@@ -166,11 +175,11 @@ class Neuron {
     weightAdj = inputs.map<double>((i) => i * delta).toList();
   }
 
-  void backPropagationHidden(List<double> deltaForward, List<double> weightsForward) {
+  void backPropagationHidden(List<double> nextLayerDeltas, List<double> nextLayerWeights) {
     delta = 0;
     // Pulling each weight corresponding to this neuron in the layer
-    for (int j = 0; j < deltaForward.length; j++) {
-      delta += deltaForward[j] * weightsForward[j];
+    for (int j = 0; j < nextLayerDeltas.length; j++) {
+      delta += nextLayerDeltas[j] * nextLayerWeights[j];
     }
     delta *= _normalizeDerivative(output);
 
