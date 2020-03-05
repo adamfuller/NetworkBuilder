@@ -57,7 +57,7 @@ class _MainViewState extends State<MainView> {
           ),
         ],
       ),
-      body: vm.isLoading ? CircularProgressIndicator() : _getBody(),
+      body: vm.isLoading ? Center(child: CircularProgressIndicator()) : _getBody(),
     );
   }
 
@@ -80,47 +80,79 @@ class _MainViewState extends State<MainView> {
       child: Column(
         children: [
           _getNetworkSettings(),
-          Text(
-            "Average % Error: ${vm.network.averagePercentError.toStringAsFixed(8)}",
-            textAlign: TextAlign.center,
-          ),
-          Text(
-            "Times Run: ${vm.network.runCount}",
-            textAlign: TextAlign.center,
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: <Widget>[
-              _getTrainingFlexible(),
-              _getNetworkMap(),
-              Flexible(
-                flex: 1,
-                fit: FlexFit.tight,
-                child: _getTestOutputCard(),
-              )
-            ],
-          ),
-        ]..removeWhere((w) => w == null),
+          _getAverageError(),
+          _getTimesRun(),
+          _getInputsNetworkAndOutputs(),
+        ],
       ),
     );
   }
 
-  Widget _getTestOutputCard() {
-    return Card(
-      child: Container(
-        height: MediaQuery.of(context).size.height / 2,
-        width: MediaQuery.of(context).size.width / 4,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: SingleChildScrollView(
-            child: Text("${vm.testOutputString}"),
-          ),
-        ),
+  Widget _getNetworkSettings() {
+    return ExpansionTile(
+      leading: const Icon(Icons.settings),
+      title: const Text("Network Settings"),
+      subtitle: const Text(
+        "Activation Function, Learning Factor, Neurons/Layer",
+        style: const TextStyle(color: Colors.grey),
       ),
+      children: <Widget>[
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: <Widget>[
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _getFunctionPicker(),
+                  Center(
+                    child: Text("Learning Factor: ${vm.network.learningRate.toStringAsFixed(8)}"),
+                  ),
+                  _getLearningRateSlider(),
+                  _getNeuronCounts(),
+                ],
+              ),
+            ),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text("Hey"),
+                ],
+              ),
+            ),
+          ],
+        )
+      ],
     );
   }
 
-  Widget _getTrainingFlexible() {
+  Widget _getAverageError() {
+    return Text(
+      "Average % Error: ${vm.network.averagePercentError.toStringAsFixed(8)}",
+      textAlign: TextAlign.center,
+    );
+  }
+
+  Widget _getTimesRun() {
+    return Text(
+      "Times Run: ${vm.network.runCount}",
+      textAlign: TextAlign.center,
+    );
+  }
+
+  Widget _getInputsNetworkAndOutputs() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: <Widget>[
+        _getTrainingData(),
+        _getNetworkMap(),
+        _getTestOutputCard(),
+      ],
+    );
+  }
+
+  Widget _getTrainingData() {
     return Flexible(
       flex: 1,
       child: Column(
@@ -156,6 +188,39 @@ class _MainViewState extends State<MainView> {
     );
   }
 
+  Widget _getNetworkMap() {
+    return Flexible(
+      flex: 2,
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: NetworkMap(
+          network: vm.network,
+        ),
+      ),
+    );
+  }
+
+  Widget _getTestOutputCard() {
+    return Flexible(
+      flex: 1,
+      fit: FlexFit.tight,
+      child: Card(
+        child: Container(
+          height: MediaQuery.of(context).size.height / 2,
+          width: MediaQuery.of(context).size.width / 4,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: SingleChildScrollView(
+              child: Text("${vm.testOutputString}"),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _getMultilineTextCard(
     TextEditingController controller,
     Function(String) onchanged,
@@ -176,29 +241,10 @@ class _MainViewState extends State<MainView> {
     );
   }
 
-  Widget _getNetworkSettings() {
-    return ExpansionTile(
-      leading: Icon(Icons.settings),
-      title: Text("Network Settings"),
-      subtitle: Text(
-        "Activation Function, Learning Factor, Neurons/Layer",
-        style: TextStyle(color: Theme.of(context).textTheme.subtitle2.color.withAlpha(125)),
-      ),
-      children: <Widget>[
-        _getFunctionPicker(),
-        Center(
-          child: Text("Learning Factor: ${vm.network.learningRate.toStringAsFixed(8)}"),
-        ),
-        _getLearningRateSlider(),
-        _getNeuronCounts(),
-      ],
-    );
-  }
-
   Widget _getLearningRateSlider() {
     return Slider(
       value: vm.network.learningRate,
-      label: (vm.network.learningRate).toStringAsFixed(5),
+      label: vm.network.learningRate.toStringAsFixed(5),
       divisions: 3000,
       min: 0.00001,
       max: 0.99999,
@@ -210,7 +256,7 @@ class _MainViewState extends State<MainView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
-        vm.network.layers.length * 2,
+        vm.network.layers.length * 2 - 1,
         (index) {
           if (index % 2 == 0) {
             return InkWell(
@@ -232,7 +278,7 @@ class _MainViewState extends State<MainView> {
             ),
           );
         },
-      ).take(vm.network.layers.length * 2 - 1).toList(),
+      ),
     );
   }
 
@@ -252,26 +298,12 @@ class _MainViewState extends State<MainView> {
             (ActivationFunction value) {
               return DropdownMenuItem<ActivationFunction>(
                 value: value,
-                child: Text("${value.toString().split("\.")[1]}"),
+                child: Text("${activationFunctionStrings[value]}"),
               );
             },
           ).toList(),
         ),
       ],
-    );
-  }
-
-  Widget _getNetworkMap() {
-    return Flexible(
-      flex: 2,
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: NetworkMap(
-          network: vm.network,
-        ),
-      ),
     );
   }
 }

@@ -112,8 +112,6 @@ class Neuron {
     }
   }
 
-  
-
   double _softplus(double x) {
     var val = log(1 + exp(x));
     if (val.isNaN || val.isInfinite) {
@@ -210,6 +208,22 @@ class Neuron {
     }
   }
 }
+
+const Map<ActivationFunction, String> activationFunctionStrings = {
+  ActivationFunction.leakyRelu:"Leaky ReLU",
+  ActivationFunction.relu:"ReLU",
+  ActivationFunction.sigmoid:"Sigmoid",
+  ActivationFunction.sigmoidish:"Sigmoidish",
+  ActivationFunction.tanh:"Tanh",
+};
+
+const Map<String, ActivationFunction> stringToActivationFunction = {
+  "Leaky ReLU":ActivationFunction.leakyRelu,
+  "ReLU":ActivationFunction.relu,
+  "Sigmoid":ActivationFunction.sigmoid,
+  "Sigmoidish":ActivationFunction.sigmoidish,
+  "Tanh":ActivationFunction.tanh,
+};
 
 enum ActivationFunction {
   leakyRelu,
