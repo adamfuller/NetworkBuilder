@@ -5,26 +5,22 @@ class MainViewModel {
   // Private members
   //
   List<StreamSubscription> _listeners;
+  List<int> _layers = List<int>();
+  List<List<double>> _inputsFromText;
+  List<List<double>> _outputsFromText;
+  Timer _trainingTimer = Timer(Duration(seconds: 0), () {})..cancel();
 
   //
   // Public Properties
   //
   Function onDataChanged;
   bool isLoading = true;
-  int layerCount = 0;
   Network network;
-  Timer trainingTimer = Timer(Duration(seconds: 0), () {})..cancel();
-  // bool isTraining = false;
-  Color copyOutputColor = Colors.black;
+  // Color copyOutputColor = Colors.black;
   String copyJsonButtonText = "Network";
   String copyMatrixButtonText = "Matrix";
   TextEditingController networkInputsController = TextEditingController();
   TextEditingController networkOutputsController = TextEditingController();
-  List<List<double>> inputsFromText;
-  List<List<double>> outputsFromText;
-  List<List<double>> testOutputs;
-  List<int> layers = List<int>();
-  String _testOutputString;
   bool isValidTrainingData = true;
 
   //
@@ -32,24 +28,26 @@ class MainViewModel {
   //
 
   String get testOutputString {
-    if (testOutputs.isEmpty) return "Empty";
-    if (_testOutputString != null) return _testOutputString;
+    if (network.testOutputs.isEmpty) return "Empty";
 
-    _testOutputString = testOutputs?.fold<String>("", (s, output) {
+    return network.testOutputs?.fold<String>("", (s, output) {
       s += "[";
       for (int i = 0; i < output.length; i++) {
-        s += output[i].toStringAsFixed(9);
+        s += output[i].toStringAsFixed(6);
         if (i < output.length - 1) s += ",";
       }
       s += "]";
       s += "\n";
       return s;
     });
-
-    return _testOutputString;
   }
 
-  IconData get trainingTimerIcon => trainingTimer.isActive ? Icons.pause_circle_outline : Icons.play_circle_outline;
+  IconData get toggleTrainingIcon {
+    if (kIsWeb) {
+      return this._trainingTimer.isActive ? Icons.pause_circle_outline : Icons.play_circle_outline;
+    }
+    return Network.isUsingIsolate && ! Network.isolateIsPaused ? Icons.pause_circle_outline : Icons.play_circle_outline;
+  }
 
   String get trainingDataValidityString => isValidTrainingData ? "(Valid)" : "(Invalid)";
 
@@ -60,6 +58,8 @@ class MainViewModel {
     init();
   }
 
+  static Future<void> _sleep(int milliseconds) async => await Future.delayed(Duration(milliseconds: milliseconds), () => "");
+
   //
   // Public functions
   //
@@ -69,41 +69,54 @@ class MainViewModel {
     //
     // Write any initializing code here
     //
-    inputsFromText = List<List<double>>();
-    testOutputs = List<List<double>>();
+    _inputsFromText = List<List<double>>();
+    // testOutputs = List<List<double>>();
     // Assign test inputs
     networkInputsController ??= TextEditingController();
-    networkInputsController.text = "0, 0, 0\n0, 0, 1\n0, 1, 0\n0, 1, 1\n1, 0, 0\n1, 0, 1\n1, 1, 0\n1, 1, 1\n";
+    networkInputsController.text = "0, 0\n0, 1\n1, 0\n1, 1\n";
 
     // Assign test outputs
     networkOutputsController ??= TextEditingController();
-    networkOutputsController.text = "0\n1\n1\n0\n1\n0\n0\n0\n";
+    networkOutputsController.text = "0\n1\n1\n0";
 
     // Parse the text from networkInputsController
-    layers = [3, 8, 5, 8, 1];
-    updateTrainingData();
+    _layers = [2, 5, 4, 5, 1];
+    _updateTrainingData();
 
-    this.trainingTimer?.cancel();
+    this._trainingTimer?.cancel();
     // isTraining = false;
 
     _assignNetwork();
+
+    // Feed junk data through the network
+    _feedSampleData();
 
     this.isLoading = false;
     onDataChanged();
   }
 
-  void networkOutputsChanged(String s) => updateTrainingData();
-  void networkInputsChanged(String s) => updateTrainingData();
+  void networkOutputsChanged(String s) => _updateTrainingData();
+  void networkInputsChanged(String s) => _updateTrainingData();
 
   void _assignNetwork() {
     this.network = Network(
-      layers,
-      activationFunction: ActivationFunction.tanh,
+      [2, 5, 4, 5, 1], // Default for 3-bit XOR
+      activationFunction: ActivationFunction.leakyRelu,
     );
   }
 
   void resetNetwork() {
+    bool restart = false;
+    if (Network.isUsingIsolate && !Network.isolateIsPaused) {
+      restart = true;
+      Network.pauseIsolate();
+    }
+
     network.reset();
+    Network.isolateNetworkUpdater?.send(network);
+
+    if (restart) Network.resumeIsolate();
+
     onDataChanged();
   }
 
@@ -128,31 +141,135 @@ class MainViewModel {
   }
 
   void toggleTraining() {
+    if (kIsWeb) {
+      _toggleTimerTraining();
+    } else {
+      _toggleIsolateTraining();
+    }
     onDataChanged();
-    if (!trainingTimer.isActive) {
-      trainingTimer = Timer.periodic(Duration(milliseconds: 100), (t) {
-        _testOutputString = null;
-        testOutputs.clear();
-        for (int j = 0; j < outputsFromText.length; j++) {
-          testOutputs.add(this.network.forwardPropagation(inputsFromText[j]));
-          this.network.backPropagation(outputsFromText[j]);
+  }
+
+  void _toggleTimerTraining() {
+    if (!_trainingTimer.isActive) {
+      _trainingTimer = Timer.periodic(Duration(milliseconds: 100), (t) {
+        network.testOutputs.clear();
+        for (int j = 0; j < _outputsFromText.length; j++) {
+          network.testOutputs.add(this.network.forwardPropagation(_inputsFromText[j]));
+          this.network.backPropagation(_outputsFromText[j]);
         }
         onDataChanged();
       });
     } else {
-      trainingTimer.cancel();
+      _trainingTimer.cancel();
+      onDataChanged();
+    }
+  }
+
+  void _toggleIsolateTraining() {
+    if (!Network.isUsingIsolate) {
+      Network.trainInIsolate(this.network, _inputsFromText, _outputsFromText, callback: (n) {
+        // If we are attempting to pause don't overwrite the value
+        if (!Network.isolateIsPaused) {
+          this.network = n;
+        }
+        onDataChanged();
+      }, onDone: () {
+        onDataChanged();
+      });
+    } else {
+      if (Network.isolateIsPaused) {
+        Network.resumeIsolate();
+      } else {
+        Network.pauseIsolate();
+      }
+      onDataChanged();
     }
   }
 
   void testPressed() {
-    _testOutputString = null;
     // Check if the data is there
-    if (inputsFromText.isEmpty) updateTrainingData();
-    testOutputs.clear();
-    for (List<double> input in inputsFromText) {
-      testOutputs.add(network.forwardPropagation(input));
+    if (_inputsFromText.isEmpty) _updateTrainingData();
+    network.testOutputs.clear();
+    for (List<double> input in _inputsFromText) {
+      network.testOutputs.add(network.forwardPropagation(input));
     }
     onDataChanged();
+  }
+
+  void stepPressed() async {
+    this.network.trainingInputs = _inputsFromText;
+    this.network.trainingOutputs = _outputsFromText;
+    Network.trainingFunction(
+      this.network,
+      maxRuns: 1,
+      cycleDelay: 0,
+    ).then((n) {
+      this.network = n;
+      onDataChanged();
+    });
+    onDataChanged();
+  }
+
+  /// Update the learning rate and pass to Isolate if needed
+  void learningRateChanged(double lr) {
+    bool shouldResume = false;
+    if (Network.isUsingIsolate && !Network.isolateIsPaused) {
+      Network.pauseIsolate();
+      shouldResume = true;
+    }
+
+    this.network.learningRate = lr;
+    Network.isolateNetworkUpdater?.send(this.network);
+
+    if (shouldResume) Network.resumeIsolate();
+    onDataChanged();
+  }
+
+  /// Update the Activation Function and pass to Isolate if needed
+  void activationFunctionChanged(ActivationFunction av) {
+    bool shouldResume = false;
+    if (Network.isUsingIsolate && !Network.isolateIsPaused) {
+      Network.pauseIsolate();
+      shouldResume = true;
+    }
+
+    this.network.activationFunction = av;
+    Network.isolateNetworkUpdater?.send(this.network);
+
+    if (shouldResume) Network.resumeIsolate();
+    onDataChanged();
+  }
+
+  /// Callback for long press on layer size indicator
+  void removeLayerPressed(BuildContext context, index) async {
+    bool shouldRemove = await showConfirmDialog(
+      context,
+      "Remove Layer",
+      "Do you want to remove this layer?",
+      confirmText: "Yes",
+      denyText: "No",
+    );
+    if (shouldRemove ?? false) {
+      int removeIndex = (index / 2).floor();
+      // Stop training (if applicable) and remove the layer
+      _removeLayer(removeIndex);
+    }
+  }
+
+  void resizeLayerPressed(BuildContext context, int index) async {
+    String nextSizeString = await showInputDialog(
+      context,
+      "Update layer size?",
+      keyboardType: TextInputType.number,
+      subtitle: "How many neurons should be in this layer?",
+    );
+    if (nextSizeString == null || nextSizeString.isEmpty) return;
+    int newSize = int.tryParse(nextSizeString);
+    if (newSize == null) return;
+
+    int updateIndex = (index / 2).floor();
+
+    _resizeLayer(updateIndex, newSize);
   }
 
   //
@@ -168,16 +285,97 @@ class MainViewModel {
     }
   }
 
-  //
-  // Dispose
-  //
-  void dispose() {
-    this._listeners?.forEach((_) => _.cancel());
-    this.networkInputsController.dispose();
-    this.networkOutputsController.dispose();
+  /// Insert a layer into the network and pass to Isolate if needed
+  void _addLayer(int index, Layer layer) {
+    bool shouldResume = false;
+    if (Network.isUsingIsolate) {
+      Network.pauseIsolate();
+      shouldResume = true;
+    }
+
+    this.network.layers.insert(index, layer);
+    Network.isolateNetworkUpdater?.send(this.network);
+
+    if (shouldResume) Network.resumeIsolate();
+    onDataChanged();
   }
 
-  void updateTrainingData() {
+  /// Resize a layer and pass test data through to resize weights
+  void _resizeLayer(int updateIndex, int newSize) {
+    bool shouldResume = false;
+    if (Network.isUsingIsolate && !Network.isolateIsPaused) {
+      Network.pauseIsolate();
+      shouldResume = true;
+    }
+
+    network.layers[updateIndex].resize(newSize);
+
+    // Feed a sample through
+    List<double> sample = List.filled(newSize, 0.1);
+    network.layers[updateIndex + 1].forwardPropagation(sample);
+    network.runCount = 0;
+
+    Network.isolateNetworkUpdater?.send(this.network);
+    if (shouldResume) Network.resumeIsolate();
+    onDataChanged();
+  }
+
+  /// Remove a layer and pass test data through to resize
+  void _removeLayer(int removeIndex) {
+    bool shouldResume = false;
+    if (Network.isUsingIsolate && !Network.isolateIsPaused) {
+      Network.pauseIsolate();
+      shouldResume = true;
+    }
+
+    this.network.layers.removeAt(removeIndex);
+
+    // Set sampleData count to weight of initial layer
+    int sampleCount = network.layers[0].neurons[0].weights.length;
+    // Generate junk sample data
+    List<double> sample = List.filled(sampleCount, 0.5);
+    // Pass the sample data to correct weights
+    network.forwardPropagation(sample);
+    network.runCount = 0;
+
+    Network.isolateNetworkUpdater?.send(this.network);
+    if (shouldResume) Network.resumeIsolate();
+    onDataChanged();
+  }
+
+  void _feedSampleData() {
+    // Set sampleData count to weight of initial layer
+    int sampleCount = network.layers[0].neurons[0].weights.length;
+    // Generate junk sample data
+    List<double> sample = List.filled(sampleCount, 0.5);
+    // Pass the sample data to correct weights
+    network.forwardPropagation(sample);
+    network.runCount = 0;
+
+    onDataChanged();
+  }
+
+  List<List<double>> _parseDoubleList(String text) {
+    List<List<double>> _output = List<List<double>>();
+    if (text.isEmpty) return null;
+    List<String> lines = text.split("\n").where((l) => l.isNotEmpty).toList();
+    for (String s in lines) {
+      _output.add(List<double>());
+      List<String> elements = s.split(",").where((l) => l.isNotEmpty).toList();
+      elements.forEach(
+        (e) => _output.last.add(
+          double.tryParse(e),
+        ),
+      );
+      // cancel if any wasn't able to be parsed
+      if (_output.last.any((e) => e == null)) return null;
+    }
+
+    return _output;
+  }
+
+  void _updateTrainingData() {
+    Network.stopIsolate();
     // Make sure there is some data
     if (networkInputsController.text.isEmpty) {
       isValidTrainingData = false;
@@ -217,40 +415,58 @@ class MainViewModel {
       }
     }
 
-    inputsFromText = parsedInputs;
-    outputsFromText = parsedOutputs;
+    _inputsFromText = parsedInputs;
+    _outputsFromText = parsedOutputs;
 
-    // bool shouldReassign = false;
-    if (layers.last != outputsFromText[0].length) {
-      layers.last = outputsFromText[0].length;
-      network.layers.last.resize(outputsFromText[0].length);
-      // shouldReassign = true;
+    if (_layers.last != _outputsFromText[0].length) {
+      _layers.last = _outputsFromText[0].length;
+      network.layers.last.resize(_outputsFromText[0].length);
     }
-    if (layers[0] != inputsFromText[0].length) {
-      layers[0] = inputsFromText[0].length;
-      // shouldReassign = true;
+    if (_layers[0] != _inputsFromText[0].length) {
+      _layers[0] = _inputsFromText[0].length;
     }
 
     isValidTrainingData = true;
     onDataChanged();
   }
 
-  List<List<double>> _parseDoubleList(String text) {
-    List<List<double>> _output = List<List<double>>();
-    if (text.isEmpty) return null;
-    List<String> lines = text.split("\n").where((l) => l.isNotEmpty).toList();
-    for (String s in lines) {
-      _output.add(List<double>());
-      List<String> elements = s.split(",").where((l) => l.isNotEmpty).toList();
-      elements.forEach(
-        (e) => _output.last.add(
-          double.tryParse(e),
-        ),
-      );
-      // cancel if any wasn't able to be parsed
-      if (_output.last.any((e) => e == null)) return null;
-    }
+  //
+  // Dispose
+  //
+  void dispose() {
+    this._listeners?.forEach((_) => _.cancel());
+    this.networkInputsController.dispose();
+    this.networkOutputsController.dispose();
+  }
 
-    return _output;
+  void addLayerPressed(BuildContext context, int index) async {
+    String neuronCountString = await showInputDialog(
+      context,
+      "Add new layer?",
+      subtitle: "This will reset the current network.",
+      hintText: "How many neurons?",
+      keyboardType: TextInputType.number,
+    );
+    if (neuronCountString == null) return;
+    int neuronCount = int.tryParse(neuronCountString);
+    if (neuronCount == null) return;
+
+    // Network.stopIsolate();
+
+    int insertIndex = (index / 2).floor();
+    List<int> counts = network.hiddenLayerNeuronCount;
+    counts.insert(insertIndex, neuronCount);
+    // Set sampleData count to weight of initial layer
+    int sampleCount = network.layers[0].neurons[0].weights.length;
+    // Generate junk sample data
+    List<double> sample = List.filled(sampleCount, 0.5);
+    // Insert the layer
+    _addLayer(insertIndex, Layer(0, neuronCount));
+
+    // Feed it through and update
+    network.forwardPropagation(sample);
+    network.runCount = 0;
+
+    onDataChanged();
   }
 }

@@ -18,14 +18,17 @@ class NetworkMap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CustomWidget(
-      size: Size.square(MediaQuery.of(context).size.shortestSide * 3 / 4),
+      size: Size(
+        MediaQuery.of(context).size.width / 2,
+        MediaQuery.of(context).size.height * 3 / 4 - 24,
+      ),
       doesRepaint: false,
       onPaint: (c, s, d) {
         Paint linePaint = Paint();
         linePaint.strokeWidth = 1.5;
 
         double spaceBetweenLayers = s.width / (network.layers.length + 1);
-        
+
         List<List<Offset>> positions = List<List<Offset>>();
         List<Rect> nodePositions = List<Rect>();
 
@@ -40,8 +43,8 @@ class NetworkMap extends StatelessWidget {
           double spaceBetweenNodes = (s.height - 2 * spaceAround) / nodeCount;
           double layerXPosition = spaceBetweenLayers / 2 + i * spaceBetweenLayers;
           // Draw the nodes
-          for (int j = 1; j < nodeCount+1; j++) {
-            double nodeYPosition = spaceBetweenNodes / 2 + spaceBetweenNodes * (j-1) + spaceAround;
+          for (int j = 1; j < nodeCount + 1; j++) {
+            double nodeYPosition = spaceBetweenNodes / 2 + spaceBetweenNodes * (j - 1) + spaceAround;
             Rect nodeRect = Rect.fromLTWH(layerXPosition, nodeYPosition, diameter, diameter);
             nodePositions.add(nodeRect);
             // Add points
@@ -60,8 +63,10 @@ class NetworkMap extends StatelessWidget {
               // position of point to the left
               // also index of the weight
               double weight = network.layers[i - 1].neurons[j].weights[x];
-              if (weight.abs() <= 1) weight = weight.sign * sqrt(weight.abs()) * 255;
-              else weight = (weight.sign*255);
+              if (weight.abs() <= 1)
+                weight = weight.sign * sqrt(weight.abs()) * 255;
+              else
+                weight = (weight.sign * 255);
               int red = (weight < 0 ? weight.abs() : 0).floor();
               int green = (weight > 0 ? weight : 0).floor();
               linePaint.color = Color.fromARGB(255, red, green, 0);

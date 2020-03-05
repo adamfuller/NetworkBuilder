@@ -27,7 +27,10 @@ class Layer {
   List<double> get delta => this.neurons.map<double>((n) => n.delta).toList();
   List<double> get outputs => this.neurons.map<double>((n) => n.output).toList();
 
-  Layer(int inputCount, int outputCount) {
+  Layer(
+    int inputCount,
+    int outputCount,
+  ) {
     this.neurons ??= List<Neuron>();
 
     // Add a new list of weights for each neuron
@@ -58,7 +61,7 @@ class Layer {
     }
   }
 
-  void mutate(){
+  void mutate() {
     this.neurons.forEach((n) => n.mutate());
   }
 
@@ -82,7 +85,7 @@ class Layer {
   }
 
   void updateWeights() {
-    for (Neuron neuron in neurons){
+    for (Neuron neuron in neurons) {
       neuron.applyAdjustments();
     }
   }
