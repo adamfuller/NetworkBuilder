@@ -38,7 +38,7 @@ class _MainViewState extends State<MainView> {
           IconButton(
             padding: const EdgeInsets.all(4),
             icon: const Icon(Icons.looks_one),
-            onPressed: vm.stepPressed,
+            onPressed: vm.isTraining ? null : vm.stepPressed,
           ),
           IconButton(
             padding: const EdgeInsets.all(4),

@@ -2,7 +2,6 @@ library neural_network;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -17,21 +16,16 @@ class Network {
   //
   // Private static
   //
-  static Isolate _trainingIsolate;
-  static ReceivePort _trainingPort;
-  static Capability _resumeCapability = Capability();
-  static SendPort isolateNetworkUpdater;
+
   //
   // Public static
   //
   static double mutationFactor = 0.0033;
   static Random r = Random();
-  static bool isolateIsPaused = false;
 
   //
   // Private fields
   //
-  List<double> _lastOutput = List<double>();
 
   //
   // Public fields
@@ -48,16 +42,16 @@ class Network {
 
   /// Outputs from running test data through single forwardProp
   List<List<double>> testOutputs = List<List<double>>();
-  List<List<double>> trainingInputs;
-  List<List<double>> trainingOutputs;
 
-  /// SendPort used if in another Isolate
-  SendPort trainingSendPort;
+  /// True if this network is currently being trained
+  bool isTraining = false;
+
+  /// True if the network was altered externally during training
+  bool wasAltered = false;
 
   String get jsonString => jsonEncode(this.toJson());
   String get prettyJsonString => JsonEncoder.withIndent('  ').convert(this.toJson());
   String get matrixString => matrix.toString();
-  static get isUsingIsolate => _trainingIsolate != null;
 
   /// Returns the learning rate of the first neuron
   ///
@@ -65,10 +59,16 @@ class Network {
   double get learningRate => this.layers[0].neurons[0].learningRate;
 
   /// Sets the learning rate of each neuron to the same value
-  set learningRate(double val) => this.layers.forEach((layer) => layer.neurons.forEach((n) => n.learningRate = val));
+  set learningRate(double val) {
+    wasAltered = true;
+    this.layers.forEach((layer) => layer.neurons.forEach((n) => n.learningRate = val));
+  }
 
   /// Sets the Activation Function of each neuron to the same one
-  set activationFunction(ActivationFunction av) => this.layers.forEach((layer) => layer.neurons.forEach((n) => n.activationFunction = av));
+  set activationFunction(ActivationFunction av) {
+    wasAltered = true;
+    this.layers.forEach((layer) => layer.neurons.forEach((n) => n.activationFunction = av));
+  }
 
   /// Returns the Activation Function of the first neuron
   ///
@@ -125,167 +125,67 @@ class Network {
     this.testOutputs = [];
   }
 
-  static void stopIsolate() {
-    // if (Network._trainingIsolate == null) return;
-    Network._trainingIsolate?.kill(priority: Isolate.immediate);
-    Network._trainingPort?.close();
-    Network._trainingIsolate = null;
-  }
+  // static Future<void> _sleep(int milliseconds) async => await Future.delayed(Duration(milliseconds: milliseconds), () => "");
 
-  static void pauseIsolate() {
-    Network.isolateIsPaused = true;
-    Network._resumeCapability = Network._trainingIsolate?.pause();
-  }
-
-  static void resumeIsolate() {
-    Network.isolateIsPaused = false;
-    Network._trainingIsolate?.resume(Network._resumeCapability);
-    _resumeCapability = null;
-  }
-
-  static Future<void> _sleep(int milliseconds) async => await Future.delayed(Duration(milliseconds: milliseconds), () => "");
-
-  ///Train a network in an Isolate
-  ///
-  ///Passes modified network to callback upon each round of training
-  static void trainInIsolate(
+  static Future<Network> train(
     Network network,
-    List<List<double>> inputs,
-    List<List<double>> expectedOutputs, {
-    void Function(Network) callback,
-    void Function() onDone,
+    List<List<double>> inputData,
+    List<List<double>> outputData, {
+    int trainCount = 10,
   }) async {
-    // Isolate has already been set! Don't do it again
-    if (Network._trainingIsolate != null) return;
+    if (network.isTraining) return null;
+    network.isTraining = true;
+    network.wasAltered = false;
 
-    // Isolate needs a function that will accept:
-    //  a network
-    Network copy = network.copy();
-    Network._trainingPort = ReceivePort();
-    copy.trainingSendPort = Network._trainingPort.sendPort;
+    Map<String, dynamic> map = {
+      "network": network,
+      "inputs": inputData,
+      "outputs": outputData,
+      "trainCount": trainCount ?? 1,
+    };
 
-    // Copy over the inputs and expected outputs
-    copy.trainingInputs = inputs;
-    copy.trainingOutputs = expectedOutputs;
+    Network n = await compute(_trainFromMap, map);
 
-    Network._trainingIsolate = await Isolate.spawn(trainingFunction, copy);
+    // If the old network was altered disregard the new one
+    if (network.wasAltered) n = network;
 
-    _trainingPort.listen((n) {
-      if (n.runtimeType == Network) {
-        // network = n;
-        if (callback != null) callback(n);
-      } else {
-        isolateNetworkUpdater = n;
-      }
-    }, onDone: () {
-      // Send a final copy of the network
-      if (onDone != null) onDone();
-    });
+    n.isTraining = false;
+    n.wasAltered = false;
+    return n;
   }
 
-  /// Train a network
+  /// Returns a trained Network
   ///
-  /// This is for use when spawning isolates
-  ///
-  /// Set cycleDelay to null for no delay between trainings.
-  static Future<Network> trainingFunction(
-    Network network, {
-    int maxRuns,
-    int updatePeriodMilliseconds = 100,
-    int cycleDelay = 16,
-  }) async {
-    if (!(network?.trainingInputs?.isNotEmpty ?? false) || !(network?.trainingOutputs?.isNotEmpty ?? false)) {
-      print("\n\nTHEY HAVE NO TRAINING INPUTS!!\n\n");
-      return null;
-    }
-    SendPort sp = network.trainingSendPort;
-    ReceivePort rp = ReceivePort();
-    Network temp;
-
-    sp.send(rp.sendPort);
-
-    // Setup the adjuster
-    rp.listen((message) {
-      if (message.runtimeType == Network) {
-        ///
-        //////// CONSIDER USING TEMP TO UPDATE ON NEXT CYCLE
-        ///
-        temp = message;
-      }
-    });
-
-    DateTime lastSent = DateTime.now();
-    int i = 0;
-
-    // Incase someone set it to null...
-    updatePeriodMilliseconds ??= 100;
-    int networkRuns = network.runCount;
-
-    while (maxRuns == null || i < maxRuns) {
-      i++;
-      // If training in another isolate only tick up for whole data set
-      network.runCount++;
-      network.averagePercentError = 0;
-      network.pastErrors.clear();
-      network.testOutputs.clear();
-      // Iterate through data and train
-      for (int i = 0; i < network.trainingInputs.length; i++) {
-        // Record the outputs
-        network.testOutputs.add(network.forwardPropagation(network.trainingInputs[i]));
-        network.backPropagation(network.trainingOutputs[i]);
-      }
-
-      if (temp != null) {
-        network = temp;
-        temp = null;
-      }
-
-      // Send out an update every 100 ms or whatever is send
-      if (DateTime.now().difference(lastSent).inMilliseconds > updatePeriodMilliseconds) {
-        sp?.send(network);
-        lastSent = DateTime.now();
-      }
-
-      // Delay 10ms to reduce CPU load
-      if (cycleDelay != null && cycleDelay > 0) await _sleep(cycleDelay);
-    }
-    // Override present value
-    network.runCount = networkRuns + i;
-    return network;
-  }
-
-  ///Perform back propagation with a map of format:
   /// ```
-  /// Network n = Network([1,1]);
-  /// List<double> data = [0.0,];
-  /// Map<String,dynamic> map = {
-  ///   'network': n,
-  ///   'data': data,
-  /// }
+  ///   Map<String, dynamic> map = {
+  ///     "network": Network,           // Network to train
+  ///     "inputs": List<List<double>>, // List of training inputs
+  ///     "outputs": List<List<double>>,// List of expected outputs
+  ///     "trainCount": int,              // # of times to train
+  ///   }
   /// ```
-  /// Returns a Network after performing back propagation
-  /// 
-  /// Returns null if `"network"` or `"data"` are not present in `map`
-  static Network _backPropagationFromMap(Map<String, dynamic> map) {
-    // Check that the network is present
+  static Network _trainFromMap(Map<String, dynamic> map) {
     if (!map.containsKey("network")) return null;
-    // Check that the data is present
-    if (!map.containsKey("data")) return null;
-    // Get the network from the map
-    Network network = map["network"];
-    // Get the data from the map
-    List<double> data = map["data"];
-    // Perform standard back propagation
-    network.backPropagation(data);
-    return network;
-  }
+    if (!map.containsKey("inputs")) return null;
+    if (!map.containsKey("outputs")) return null;
+    if (!map.containsKey("trainCount")) return null;
 
-  /// Returns a version of this network that has been back propagated for `expectedOutput`
-  Future<Network> asyncBackProp(List<double> expectedOutput) async {
-    return compute(Network._backPropagationFromMap, {
-      "network": this,
-      "data": expectedOutput,
-    });
+    int trainCount = map["trainCount"];
+    Network network = map["network"];
+    List<List<double>> inputs = map["inputs"];
+    List<List<double>> outputs = map["outputs"];
+
+    // Train the network runIndex times
+    for (int runIndex = 0; runIndex < trainCount; runIndex++) {
+      for (int i = 0; i < inputs.length; i++) {
+        network.forwardPropagation(inputs[i]);
+        network.backPropagation(outputs[i]);
+      }
+      network.runCount++;
+    }
+
+    // Return the network
+    return network;
   }
 
   factory Network.fromJsonString(String jsonString) {
@@ -305,7 +205,6 @@ class Network {
     );
     n.hiddenLayerNeuronCount = map["hiddenLayerNeuronCount"];
     n.pastErrors = map["pastErrors"];
-    n._lastOutput = map["lastOutput"];
 
     return n;
   }
@@ -320,7 +219,6 @@ class Network {
       "hiddenLayerNeuronCount": this.hiddenLayerNeuronCount,
       "averagePercentError": this.averagePercentError,
       "pastErrors": this.pastErrors,
-      "lastOutput": this._lastOutput,
       "layers": this.layers?.map<Map<String, dynamic>>((l) => l.toJson())?.toList(),
       "testOutputs": this.testOutputs,
       "activationFunction": ActivationFunction.values.indexOf(this.activationFunction),
@@ -328,13 +226,11 @@ class Network {
     return output;
   }
 
-  void setTrainingInput(List<List<double>> inputs) => trainingInputs = inputs;
-  void setTrainingOutput(List<List<double>> outputs) => trainingOutputs = outputs;
-
   void reset() {
     runCount = 0;
     pastErrors.clear();
     averagePercentError = 0;
+    wasAltered = true;
 
     for (Layer layer in layers) {
       for (Neuron neuron in layer.neurons) {
@@ -361,13 +257,13 @@ class Network {
       output = layer.forwardPropagation(output ?? inputs);
     }
 
-    _lastOutput = output;
+    // _lastOutput = output;
 
     return output;
   }
 
   void backPropagation(List<double> expected) {
-    if (this.trainingSendPort == null) runCount++;
+    if (!isTraining) runCount++;
     _calculateError(expected);
 
     // Calculate output layer
@@ -401,5 +297,23 @@ class Network {
         pastErrors.removeAt(0);
       }
     }
+  }
+
+  /// Removes layer at `removeIndex`
+  void removeLayer(int removeIndex) {
+    this.wasAltered = true;
+    this.layers.removeAt(removeIndex);
+  }
+
+  /// Inserts `layer` into `layers` at `index`
+  void insetLayer(int index, Layer layer) {
+    this.wasAltered = true;
+    this.layers.insert(index, layer);
+  }
+
+  /// Modifies layer at `updateIndex` to have `newSize` neurons
+  void resizeLayer(int updateIndex, int newSize) {
+    this.wasAltered = true;
+    this.layers[updateIndex].resize(newSize);
   }
 }
