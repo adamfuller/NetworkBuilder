@@ -22,6 +22,7 @@ class Network {
   //
   static double mutationFactor = 0.0033;
   static Random r = Random();
+  static int backPropsPerTrain = 1;
 
   //
   // Private fields

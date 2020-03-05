@@ -57,7 +57,7 @@ class MainViewModel {
     init();
   }
 
-  static Future<void> _sleep(int milliseconds) async => await Future.delayed(Duration(milliseconds: milliseconds), () => "");
+  // static Future<void> _sleep(int milliseconds) async => await Future.delayed(Duration(milliseconds: milliseconds), () => "");
 
   //
   // Public functions
@@ -176,7 +176,7 @@ class MainViewModel {
   void _toggleTimerTraining() {
     if (!_trainingTimer.isActive) {
       _trainingTimer = Timer.periodic(
-        Duration(milliseconds: 100),
+        Duration(milliseconds: 30),
         kIsWeb ? _webTimerFunction : _timerFunction,
       );
     } else {
