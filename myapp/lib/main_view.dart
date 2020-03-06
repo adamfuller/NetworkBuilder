@@ -32,6 +32,7 @@ class _MainViewState extends State<MainView> {
       appBar: AppBar(
         title: Row(children: [
           _getRoundedCopyButton(vm.copyJsonButtonText, vm.saveJsonPressed),
+          _getRoundedCopyButton(vm.copyPythonButtonText, vm.savePythonPressed),
           _getRoundedCopyButton(vm.copyMatrixButtonText, vm.saveMatrixPressed),
         ]),
         actions: <Widget>[
@@ -113,14 +114,14 @@ class _MainViewState extends State<MainView> {
                 ],
               ),
             ),
-            Flexible(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text("Hey"),
-                ],
-              ),
-            ),
+            // Flexible(
+            //   child: Column(
+            //     mainAxisSize: MainAxisSize.min,
+            //     children: <Widget>[
+            //       Text("Hey"),
+            //     ],
+            //   ),
+            // ),
           ],
         )
       ],

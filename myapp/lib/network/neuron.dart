@@ -55,6 +55,9 @@ class Neuron {
     }
   }
 
+
+  String get normalizationPythonString => _activationFunctionPythonStrings[activationFunction];
+
   Neuron(
     int inputCount, {
     double learningRate,
@@ -208,6 +211,29 @@ class Neuron {
     }
   }
 }
+
+// static double _sigmoid(double x) => 1.0 / (1.0 + exp(-x));
+//   static double _sigmoidDerivative(double x) => _sigmoid(x) * (1.0 - _sigmoid(x));
+//   static double _sigmoidishDerivative(double x) => x * (1.0 - x);
+
+//   static double _tanh(double x) => (exp(x) - exp(-x)) / (exp(x) + exp(-x));
+//   static double _tanhDerivative(double x) => 1.0 - (x * x);
+
+//   static double _relu(double x) => x > 0.0 ? x : 0.0;
+//   static double _reluDerivative(double x) => x > 0.0 ? 1.0 : 0.0;
+
+//   static double _leakyRelu(double x) => x > 0.0 ? x : 0.1 * x;
+//   static double _leakyReluDerivative(double x) => x > 0.0 ? 1.0 : 0.1;
+
+const String _e = "2.718281828459045235360287471352";
+
+const Map<ActivationFunction, String> _activationFunctionPythonStrings = {
+  ActivationFunction.leakyRelu:"lambda x: x if x > 0 else 0.1 * x",
+  ActivationFunction.relu:"lambda x: x if x > 0 else 0",
+  ActivationFunction.sigmoid:"lambda x: 1 / (1 + ($_e)**(-x)",
+  ActivationFunction.sigmoidish:"lambda x: 1 / (1 + ($_e)**(-x)",
+  ActivationFunction.tanh:"lambda x: (($_e)**x - ($_e)**(-x))/(($_e)**x + ($_e)**(-x))",
+};
 
 const Map<ActivationFunction, String> activationFunctionStrings = {
   ActivationFunction.leakyRelu:"Leaky ReLU",

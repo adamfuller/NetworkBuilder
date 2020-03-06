@@ -19,6 +19,7 @@ class MainViewModel {
   // Color copyOutputColor = Colors.black;
   String copyJsonButtonText = "Network";
   String copyMatrixButtonText = "Matrix";
+  String copyPythonButtonText = "Python";
   TextEditingController networkInputsController = TextEditingController();
   TextEditingController networkOutputsController = TextEditingController();
   bool isValidTrainingData = true;
@@ -79,7 +80,8 @@ class MainViewModel {
 
     // Parse the text from networkInputsController
     _layers = [2, 5, 4, 5, 1];
-    _updateTrainingData();
+    // Update both
+    _updateTrainingData(wasInputs: true, wasOutputs: true);
 
     this._trainingTimer?.cancel();
     // isTraining = false;
@@ -93,8 +95,8 @@ class MainViewModel {
     onDataChanged();
   }
 
-  void networkOutputsChanged(String s) => _updateTrainingData();
-  void networkInputsChanged(String s) => _updateTrainingData();
+  void networkOutputsChanged(String s) => _updateTrainingData(wasOutputs: true);
+  void networkInputsChanged(String s) => _updateTrainingData(wasInputs: true);
 
   void _assignNetwork() {
     this.network = Network(
@@ -124,6 +126,16 @@ class MainViewModel {
     onDataChanged();
     Timer(Duration(seconds: 1), () {
       copyJsonButtonText = "Network";
+      onDataChanged();
+    });
+  }
+
+  void savePythonPressed() {
+    Clipboard.setData(ClipboardData(text: network.pythonFunction));
+    copyPythonButtonText = "Copied";
+    onDataChanged();
+    Timer(Duration(seconds: 1), () {
+      copyPythonButtonText = "Python";
       onDataChanged();
     });
   }
@@ -286,6 +298,8 @@ class MainViewModel {
   }
 
   List<List<double>> _parseDoubleList(String text) {
+    // return null;
+    // print(text.length);
     List<List<double>> _output = List<List<double>>();
     if (text.isEmpty) return null;
     List<String> lines = text.split("\n").where((l) => l.isNotEmpty).toList();
@@ -294,7 +308,7 @@ class MainViewModel {
       List<String> elements = s.split(",").where((l) => l.isNotEmpty).toList();
       elements.forEach(
         (e) => _output.last.add(
-          double.tryParse(e),
+          double.parse(e),
         ),
       );
       // cancel if any wasn't able to be parsed
@@ -304,7 +318,10 @@ class MainViewModel {
     return _output;
   }
 
-  void _updateTrainingData() {
+  void _updateTrainingData({
+    bool wasInputs = false,
+    bool wasOutputs = false,
+  }) {
     // Make sure there is some data
     if (networkInputsController.text.isEmpty) {
       isValidTrainingData = false;
@@ -317,37 +334,37 @@ class MainViewModel {
       return;
     }
 
-    // Update inputs
-    List<List<double>> parsedInputs = _parseDoubleList(networkInputsController.text);
+    // Update inputs if the data changed was the inputs
+    List<List<double>> parsedInputs = wasInputs ? _parseDoubleList(networkInputsController.text) : _inputsFromText;
 
-    // Update expected outputs
-    List<List<double>> parsedOutputs = _parseDoubleList(networkOutputsController.text);
+    // Update expected outputs if the data changed was the outputs
+    List<List<double>> parsedOutputs = wasOutputs ? _parseDoubleList(networkOutputsController.text) : _outputsFromText;
 
     // if any are null or they don't match they aren't valid
     if (parsedInputs == null || parsedOutputs == null || parsedInputs?.length != parsedOutputs?.length) {
       isValidTrainingData = false;
-      onDataChanged();
-      return;
+      // onDataChanged();
+      // return;
     }
 
     // Make sure all internal lengths match
     for (int i = 0; i < parsedInputs.length - 1; i++) {
       if (parsedInputs[i].length != parsedInputs[i + 1].length) {
         isValidTrainingData = false;
-        onDataChanged();
-        return;
+        // onDataChanged();
+        // return;
       }
       if (parsedOutputs[i].length != parsedOutputs[i + 1].length) {
         isValidTrainingData = false;
-        onDataChanged();
-        return;
+        // onDataChanged();
+        // return;
       }
     }
 
-    _inputsFromText = parsedInputs;
-    _outputsFromText = parsedOutputs;
+    if(wasInputs) _inputsFromText = parsedInputs;
+    if(wasOutputs) _outputsFromText = parsedOutputs;
 
-    if (_layers.last != _outputsFromText[0].length) {
+    if (wasOutputs && _layers.last != _outputsFromText[0].length) {
       _layers.last = _outputsFromText[0].length;
 
       ///
@@ -355,7 +372,7 @@ class MainViewModel {
       ///
       network.layers.last.resize(_outputsFromText[0].length);
     }
-    if (_layers[0] != _inputsFromText[0].length) {
+    if (wasInputs && _layers[0] != _inputsFromText[0].length) {
       _layers[0] = _inputsFromText[0].length;
     }
 

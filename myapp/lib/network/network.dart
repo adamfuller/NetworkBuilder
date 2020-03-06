@@ -22,7 +22,7 @@ class Network {
   //
   static double mutationFactor = 0.0033;
   static Random r = Random();
-  static int backPropsPerTrain = 1;
+  static int backPropsPerTrain = 10;
 
   //
   // Private fields
@@ -53,6 +53,26 @@ class Network {
   String get jsonString => jsonEncode(this.toJson());
   String get prettyJsonString => JsonEncoder.withIndent('  ').convert(this.toJson());
   String get matrixString => matrix.toString();
+  String get _normalizePythonString {
+    return this.layers.first.neurons.first.normalizationPythonString;
+  }
+
+  String get pythonFunction {
+    return "def feedForward(x):\n" +
+        "    network = $matrixString\n" +
+        "    normalize = $_normalizePythonString\n" +
+        "    output = [1]\n" +
+        "    output.extend(x)\n" +
+        "    for layer in network:\n" +
+        "        nextOutput = [1]\n" +
+        "        for neuron in layer:\n" +
+        "            neuronOutput = 0\n" +
+        "            for i in range(len(output)):\n" +
+        "                neuronOutput += neuron[i]*output[i]\n" +
+        "            nextOutput.append(normalize(neuronOutput))\n" +
+        "        output = nextOutput\n" +
+        "    return output[1:]\n";
+  }
 
   /// Returns the learning rate of the first neuron
   ///
@@ -132,7 +152,7 @@ class Network {
     Network network,
     List<List<double>> inputData,
     List<List<double>> outputData, {
-    int trainCount = 10,
+    int trainCount,
   }) async {
     if (network.isTraining) return null;
     network.isTraining = true;
@@ -142,7 +162,7 @@ class Network {
       "network": network,
       "inputs": inputData,
       "outputs": outputData,
-      "trainCount": trainCount ?? 1,
+      "trainCount": trainCount ?? Network.backPropsPerTrain,
     };
 
     Network n = await compute(_trainFromMap, map);
