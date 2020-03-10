@@ -36,10 +36,13 @@ class NetworkMap extends StatelessWidget {
           positions.add(List<Offset>());
           List<Layer> sub = network.layers.take(i).toList();
           Layer layer = (sub.length > 0 && i < network.layers.length) ? sub.last : null;
-          int nodeCount = layer != null ? layer.neurons.length : network.layers[0].neurons[0].weights.length - 1;
+          int nodeCount = layer != null ? layer.weights.length : network.layers[0].weights[0].length-1;
+          
+          // Set the output layer size
           if (i == network.layers.length) {
-            nodeCount = network.layers.last.neurons.length;
+            nodeCount = network.layers.last.weights.length;
           }
+
           double spaceBetweenNodes = (s.height - 2 * spaceAround) / nodeCount;
           double layerXPosition = spaceBetweenLayers / 2 + i * spaceBetweenLayers;
           // Draw the nodes
@@ -62,7 +65,7 @@ class NetworkMap extends StatelessWidget {
             for (int x = 0; x < positions[i - 1].length; x++) {
               // position of point to the left
               // also index of the weight
-              double weight = network.layers[i - 1].neurons[j].weights[x];
+              double weight = network.layers[i - 1].weights[j][x+1]; // +1 to account for bias
               if (weight.abs() <= 1)
                 weight = weight.sign * sqrt(weight.abs()) * 255;
               else

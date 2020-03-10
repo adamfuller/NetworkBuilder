@@ -1,16 +1,11 @@
 library neural_network;
 
-import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
-
 part 'layer.dart';
-part 'neuron.dart';
 
-const double _defaultLearningRate = 0.033;
-const ActivationFunction _defaultActivationFunction = ActivationFunction.sigmoid;
+// const double _defaultLearningRate = 0.033;
+// const ActivationFunction _defaultActivationFunction = ActivationFunction.sigmoid;
 
 class Network {
   //
@@ -20,9 +15,7 @@ class Network {
   //
   // Public static
   //
-  static double mutationFactor = 0.0033;
   static Random r = Random();
-  static int backPropsPerTrain = 10;
 
   //
   // Private fields
@@ -32,242 +25,102 @@ class Network {
   // Public fields
   //
   List<Layer> layers;
-  List<int> hiddenLayerNeuronCount;
 
-  /// How many times has this been run under the same state
-  int runCount = 0;
+  /// Gets the first learning rate
+  double get learningRate => this.layers.first.learningRate;
 
-  /// Average Percent Error of the last few runs
-  double averagePercentError = 0;
-  List<double> pastErrors = List<double>();
+  ActivationFunction get activationFunction => this.layers.first.activationFunction;
 
-  /// Outputs from running test data through single forwardProp
-  List<List<double>> testOutputs = List<List<double>>();
+  /// Returns an array representing the network
+  List<List<List<double>>> get matrix => this.layers.map((e) => e.weights).toList();
 
-  /// True if this network is currently being trained
-  bool isTraining = false;
+  //
+  // Setters
+  //
 
-  /// True if the network was altered externally during training
-  bool wasAltered = false;
+  /// Sets all layer activation functions
+  set activationFunction(ActivationFunction af) => this.layers.forEach((l) => l.activationFunction = af);
 
-  String get jsonString => jsonEncode(this.toJson());
-  String get prettyJsonString => JsonEncoder.withIndent('  ').convert(this.toJson());
-  String get matrixString => matrix.toString();
-  String get _normalizePythonString {
-    return this.layers.first.neurons.first.normalizationPythonString;
-  }
-
-  String get pythonFunction {
-    return "def feedForward(x):\n" +
-        "    network = $matrixString\n" +
-        "    normalize = $_normalizePythonString\n" +
-        "    output = [1]\n" +
-        "    output.extend(x)\n" +
-        "    for layer in network:\n" +
-        "        nextOutput = [1]\n" +
-        "        for neuron in layer:\n" +
-        "            neuronOutput = 0\n" +
-        "            for i in range(len(output)):\n" +
-        "                neuronOutput += neuron[i]*output[i]\n" +
-        "            nextOutput.append(normalize(neuronOutput))\n" +
-        "        output = nextOutput\n" +
-        "    return output[1:]\n";
-  }
-
-  /// Returns the learning rate of the first neuron
-  ///
-  /// Will be removed once learningRate is unique.
-  double get learningRate => this.layers[0].neurons[0].learningRate;
-
-  /// Sets the learning rate of each neuron to the same value
-  set learningRate(double val) {
-    wasAltered = true;
-    this.layers.forEach((layer) => layer.neurons.forEach((n) => n.learningRate = val));
-  }
-
-  /// Sets the Activation Function of each neuron to the same one
-  set activationFunction(ActivationFunction av) {
-    wasAltered = true;
-    this.layers.forEach((layer) => layer.neurons.forEach((n) => n.activationFunction = av));
-  }
-
-  /// Returns the Activation Function of the first neuron
-  ///
-  /// Will be removed once activationFunction is unique.
-  ActivationFunction get activationFunction => this.layers[0].neurons[0].activationFunction;
-
-  List<List<List<double>>> get matrix {
-    List<List<List<double>>> values = List<List<List<double>>>(this.layers.length);
-    for (int layerIndex = 0; layerIndex < this.layers.length; layerIndex++) {
-      values[layerIndex] = List<List<double>>();
-      for (int neuronIndex = 0; neuronIndex < layers[layerIndex].neurons.length; neuronIndex++) {
-        values[layerIndex].add(layers[layerIndex].neurons[neuronIndex].weights);
-      }
-    }
-    return values;
-  }
-
-  int get maxLayerSize {
-    int max = 0;
-    for (Layer l in layers) {
-      if (l.neurons.length > max) {
-        max = l.neurons.length;
-      }
-    }
-
-    return max;
-  }
+  /// Sets all layer learning rates
+  set learningRate(double val) => this.layers.forEach((l) => l.learningRate = val);
 
   Network(
-    this.hiddenLayerNeuronCount, {
-    ActivationFunction activationFunction = _defaultActivationFunction,
+    int inputSize,
+    int outputSize, {
+    List<int> hiddenLayerSizes,
+    ActivationFunction activationFunction = Layer.defaultActivationFunction,
     this.layers,
-    double learningRate = _defaultLearningRate,
-    this.averagePercentError = 0,
-    this.runCount = 0,
-    this.testOutputs,
+    double learningRate = 0.033,
   }) {
-    if (this.layers == null) {
-      this.layers ??= List<Layer>();
-      // Add a layer for each count
-      for (int i = 0; i < hiddenLayerNeuronCount.length - 1; i++) {
-        layers.add(
-          Layer(
-            hiddenLayerNeuronCount[i],
-            hiddenLayerNeuronCount[i + 1],
-          ),
-        );
-      }
+    // Set the layer sizes
+    List<int> _hiddenLayerSizes = [inputSize].followedBy(hiddenLayerSizes ?? []).followedBy([outputSize]).toList();
+
+    // Remove any zero or null values in case someone did dumb stuff
+    _hiddenLayerSizes.removeWhere((n) => n == 0 || n == null);
+
+    // Setup the layers
+    layers ??= [];
+
+    // Add any remaining hidden layers
+    for (int i = 1; i < _hiddenLayerSizes.length; i++) {
+      layers.add(Layer(
+        _hiddenLayerSizes[i - 1],
+        _hiddenLayerSizes[i],
+        activationFunction: activationFunction,
+        learningRate: learningRate,
+      ));
     }
-    // Set values for the learning rate of each neuron
-    this.learningRate = learningRate ?? _defaultLearningRate;
-    // Set each neurons activation function
-    this.activationFunction = activationFunction ?? _defaultActivationFunction;
-    this.testOutputs = [];
   }
 
-  // static Future<void> _sleep(int milliseconds) async => await Future.delayed(Duration(milliseconds: milliseconds), () => "");
-
-  static Future<Network> train(
-    Network network,
-    List<List<double>> inputData,
-    List<List<double>> outputData, {
-    int trainCount,
-  }) async {
-    if (network.isTraining) return null;
-    network.isTraining = true;
-    network.wasAltered = false;
-
-    Map<String, dynamic> map = {
-      "network": network,
-      "inputs": inputData,
-      "outputs": outputData,
-      "trainCount": trainCount ?? Network.backPropsPerTrain,
-    };
-
-    Network n = await compute(_trainFromMap, map);
-
-    // If the old network was altered disregard the new one
-    if (network.wasAltered) n = network;
-
-    n.isTraining = false;
-    n.wasAltered = false;
-    return n;
-  }
-
-  /// Returns a trained Network
-  ///
-  /// ```
-  ///   Map<String, dynamic> map = {
-  ///     "network": Network,           // Network to train
-  ///     "inputs": List<List<double>>, // List of training inputs
-  ///     "outputs": List<List<double>>,// List of expected outputs
-  ///     "trainCount": int,              // # of times to train
-  ///   }
-  /// ```
-  static Network _trainFromMap(Map<String, dynamic> map) {
-    if (!map.containsKey("network")) return null;
-    if (!map.containsKey("inputs")) return null;
-    if (!map.containsKey("outputs")) return null;
-    if (!map.containsKey("trainCount")) return null;
-
-    int trainCount = map["trainCount"];
-    Network network = map["network"];
-    List<List<double>> inputs = map["inputs"];
-    List<List<double>> outputs = map["outputs"];
-
-    // Train the network runIndex times
-    for (int runIndex = 0; runIndex < trainCount; runIndex++) {
-      for (int i = 0; i < inputs.length; i++) {
-        network.forwardPropagation(inputs[i]);
-        network.backPropagation(outputs[i]);
-      }
-      network.runCount++;
-    }
-
-    // Return the network
-    return network;
-  }
-
-  factory Network.fromJsonString(String jsonString) {
-    Map<String, dynamic> map = jsonDecode(jsonString);
-    return Network.fromJson(map);
-  }
-
-  factory Network.fromJson(Map<String, dynamic> map) {
-    Network n = Network(
-      [0],
-      layers: map["layers"].map<Layer>((lString) => Layer.fromJson(lString)).toList(),
-      averagePercentError: map["averagePercentError"],
-      runCount: map["runCount"],
-      testOutputs: map["testOutputs"],
-      learningRate: map["learningRate"],
-      activationFunction: ActivationFunction.values[map["activationFunction"]],
-    );
-    n.hiddenLayerNeuronCount = map["hiddenLayerNeuronCount"];
-    n.pastErrors = map["pastErrors"];
-
-    return n;
-  }
-
-  Network copy() => Network.fromJson(this.toJson());
-
+  /// Returns a map representation of the network
   Map<String, dynamic> toJson() {
-    var output = {
-      "mutationFactor": Network.mutationFactor,
-      "runCount": this.runCount,
-      "learningRate": this.learningRate,
-      "hiddenLayerNeuronCount": this.hiddenLayerNeuronCount,
-      "averagePercentError": this.averagePercentError,
-      "pastErrors": this.pastErrors,
-      "layers": this.layers?.map<Map<String, dynamic>>((l) => l.toJson())?.toList(),
-      "testOutputs": this.testOutputs,
-      "activationFunction": ActivationFunction.values.indexOf(this.activationFunction),
-    };
-    return output;
+    return {"layers": matrix, "learningRate": learningRate, "activationFunction": activationFunctionStrings[layers.first.activationFunction]};
   }
 
   void reset() {
-    runCount = 0;
-    pastErrors.clear();
-    averagePercentError = 0;
-    wasAltered = true;
+    this.layers.forEach((l) => l.randomize());
+  }
 
-    for (Layer layer in layers) {
-      for (Neuron neuron in layer.neurons) {
-        neuron.reset();
-      }
+  void removeLayer(int index) {
+    if (index > 0) {
+      // The earlier layer will have to resize it's output
+      layers[index + 1].resizeInput(layers[index - 1].weights.length - 1);
+    } else {
+      // Make the new input layer accept the right sized data
+      layers[index + 1].resizeInput(layers[0].weights[0].length - 1);
     }
+
+    // Now remove the layer
+    layers.removeAt(index);
   }
 
-  Network produceMutation() {
-    Network copy = Network.fromJson(this.toJson());
-    copy.mutate();
-    return copy;
+  void insertLayer(int index, int neuronCount) {
+    // Input size is the prev layer's output or overall input.
+    int inputSize = index > 0 ? layers[index - 1].weights.length : (layers[0].weights[0].length - 1);
+
+    // Resize the one being pushed back to accept the new input size
+    layers[index].resizeInput(neuronCount);
+
+    // Add the new layer
+    layers.insert(
+      index,
+      Layer(
+        inputSize,
+        neuronCount,
+        activationFunction: activationFunction,
+        learningRate: learningRate,
+      ),
+    );
   }
 
-  void mutate() {
-    this.layers.forEach((l) => l.mutate());
+  /// The layer at `index` will be adjusted
+  /// to have `neuronCount` sets of weights
+  void changeLayerSize(int index, int neuronCount) {
+    // Change the specified layer's output count
+    layers[index].resizeOutput(neuronCount);
+
+    // Resize the next layer to accept the new input size
+    layers[index + 1].resizeInput(neuronCount);
   }
 
   /// Returns the output of this network for input __inputs__
@@ -278,17 +131,12 @@ class Network {
       output = layer.forwardPropagation(output ?? inputs);
     }
 
-    // _lastOutput = output;
-
     return output;
   }
 
   void backPropagation(List<double> expected) {
-    if (!isTraining) runCount++;
-    _calculateError(expected);
-
     // Calculate output layer
-    layers[layers.length - 1].backPropagationOutput(expected);
+    layers.last.backPropagationOutput(expected);
 
     // calculate input layers
     for (int i = this.layers.length - 2; i >= 0; i--) {
@@ -298,43 +146,39 @@ class Network {
     // Update all the weights
     this.layers.forEach((l) => l.updateWeights());
   }
+}
 
-  /// Calculate the error of the last output
-  void _calculateError(List<double> expected) {
-    double expectedSum = 0;
-    for (double v in expected) expectedSum += v;
-    double calculatedSum = 0;
-    for (double v in layers.last.outputs) calculatedSum += v;
-    if (expectedSum != 0) {
-      double currentError = expectedSum > 0 ? (expectedSum - calculatedSum) / expectedSum * 100 : 0;
-      pastErrors.add(currentError);
-      // reset average
-      averagePercentError = 0;
-      // sum up errors
-      pastErrors.forEach((e) => averagePercentError += e);
-      // divide by length
-      averagePercentError /= pastErrors.length;
-      if (pastErrors.length > 5 && currentError > 0) {
-        pastErrors.removeAt(0);
-      }
-    }
-  }
+// const String _e = "2.718281828459045235360287471352";
 
-  /// Removes layer at `removeIndex`
-  void removeLayer(int removeIndex) {
-    this.wasAltered = true;
-    this.layers.removeAt(removeIndex);
-  }
+// const Map<ActivationFunction, String> _activationFunctionPythonStrings = {
+//   ActivationFunction.leakyRelu: "lambda x: x if x > 0 else 0.1 * x",
+//   ActivationFunction.relu: "lambda x: x if x > 0 else 0",
+//   ActivationFunction.sigmoid: "lambda x: 1 / (1 + ($_e)**(-x)",
+//   ActivationFunction.sigmoidish: "lambda x: 1 / (1 + ($_e)**(-x)",
+//   ActivationFunction.tanh: "lambda x: (($_e)**x - ($_e)**(-x))/(($_e)**x + ($_e)**(-x))",
+// };
 
-  /// Inserts `layer` into `layers` at `index`
-  void insetLayer(int index, Layer layer) {
-    this.wasAltered = true;
-    this.layers.insert(index, layer);
-  }
+const Map<ActivationFunction, String> activationFunctionStrings = {
+  ActivationFunction.leakyRelu: "Leaky ReLU",
+  ActivationFunction.relu: "ReLU",
+  ActivationFunction.sigmoid: "Sigmoid",
+  ActivationFunction.sigmoidish: "Sigmoidish",
+  ActivationFunction.tanh: "Tanh",
+};
 
-  /// Modifies layer at `updateIndex` to have `newSize` neurons
-  void resizeLayer(int updateIndex, int newSize) {
-    this.wasAltered = true;
-    this.layers[updateIndex].resize(newSize);
-  }
+const Map<String, ActivationFunction> stringToActivationFunction = {
+  "Leaky ReLU": ActivationFunction.leakyRelu,
+  "ReLU": ActivationFunction.relu,
+  "Sigmoid": ActivationFunction.sigmoid,
+  "Sigmoidish": ActivationFunction.sigmoidish,
+  "Tanh": ActivationFunction.tanh,
+};
+
+enum ActivationFunction {
+  leakyRelu,
+  relu,
+  sigmoid,
+  sigmoidish,
+  tanh,
+  // softplus,
 }

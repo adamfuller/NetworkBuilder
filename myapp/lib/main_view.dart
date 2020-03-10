@@ -107,7 +107,7 @@ class _MainViewState extends State<MainView> {
                 children: <Widget>[
                   _getFunctionPicker(),
                   Center(
-                    child: Text("Learning Factor: ${vm.network.learningRate.toStringAsFixed(8)}"),
+                    child: Text("Learning Factor: ${vm.network.layers[0].learningRate.toStringAsFixed(8)}"),
                   ),
                   _getLearningRateSlider(),
                   _getNeuronCounts(),
@@ -129,15 +129,20 @@ class _MainViewState extends State<MainView> {
   }
 
   Widget _getAverageError() {
+    /// TODO: FIX THIS
+    // return Text(
+    //   "This will be fixed ( show % error )",
+    //   textAlign: TextAlign.center,
+    // );
     return Text(
-      "Average % Error: ${vm.network.averagePercentError.toStringAsFixed(8)}",
+      "Average % Error: ${vm.avgPercentError}",
       textAlign: TextAlign.center,
     );
   }
 
   Widget _getTimesRun() {
     return Text(
-      "Times Run: ${vm.network.runCount}",
+      "Times Run: ${vm.runCount}",
       textAlign: TextAlign.center,
     );
   }
@@ -160,9 +165,25 @@ class _MainViewState extends State<MainView> {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            "Training Input " + vm.trainingDataValidityString,
-            style: TextStyle(color: vm.isValidTrainingData ? Theme.of(context).textTheme.button.color : Colors.red),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                "Training Input ${vm.trainingDataValidityString} ",
+                style: TextStyle(color: vm.isValidTrainingData ? Theme.of(context).textTheme.button.color : Colors.red),
+              ),
+              Platform.isFuchsia
+                  ? RaisedButton.icon(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      // padding: const EdgeInsets.all(4),
+                      icon: const Icon(Icons.folder_open),
+                      label: const Text("Load"),
+                      onPressed: vm.loadInputsFromFile,
+                    )
+                  : Padding(
+                      padding: EdgeInsets.zero,
+                    ),
+            ],
           ),
           Container(
             height: MediaQuery.of(context).size.shortestSide / 3,
@@ -172,9 +193,25 @@ class _MainViewState extends State<MainView> {
               "Input Data",
             ),
           ),
-          Text(
-            "Training Output " + vm.trainingDataValidityString,
-            style: TextStyle(color: vm.isValidTrainingData ? Theme.of(context).textTheme.button.color : Colors.red),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                "Training Output ${vm.trainingDataValidityString} ",
+                style: TextStyle(color: vm.isValidTrainingData ? Theme.of(context).textTheme.button.color : Colors.red),
+              ),
+              Platform.isFuchsia
+                  ? RaisedButton.icon(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      // padding: const EdgeInsets.all(4),
+                      icon: const Icon(Icons.folder_open),
+                      label: const Text("Load"),
+                      onPressed: vm.loadOutputsFromFile,
+                    )
+                  : Padding(
+                      padding: EdgeInsets.zero,
+                    ),
+            ],
           ),
           Container(
             height: MediaQuery.of(context).size.shortestSide / 3,
@@ -230,19 +267,24 @@ class _MainViewState extends State<MainView> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: TextField(
-          keyboardType: TextInputType.multiline,
-          maxLines: null,
-          decoration: InputDecoration.collapsed(hintText: hint),
-          controller: controller,
-          onChanged: onchanged,
-          textInputAction: TextInputAction.newline,
+        child: SingleChildScrollView(
+          child: TextField(
+            keyboardType: TextInputType.multiline,
+            maxLines: null,
+            decoration: InputDecoration.collapsed(hintText: hint),
+            controller: controller,
+            onChanged: onchanged,
+            textInputAction: TextInputAction.newline,
+          ),
         ),
       ),
     );
   }
 
   Widget _getLearningRateSlider() {
+    ///
+    /// TODO: FIX THIS
+    ///
     return Slider(
       value: vm.network.learningRate,
       label: vm.network.learningRate.toStringAsFixed(5),
@@ -274,7 +316,7 @@ class _MainViewState extends State<MainView> {
             child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text("${vm.network.layers[(index / 2).floor()].neurons.length}"),
+                child: Text("${vm.network.layers[(index / 2).floor()].weights.length}"),
               ),
             ),
           );
@@ -292,7 +334,7 @@ class _MainViewState extends State<MainView> {
           child: const Text("Activation Function:"),
         ),
         DropdownButton<ActivationFunction>(
-          value: vm.network.activationFunction,
+          value: vm.network.layers[0].activationFunction,
           style: Theme.of(context).textTheme.button.apply(color: Colors.blue),
           onChanged: vm.activationFunctionChanged,
           items: ActivationFunction.values.map<DropdownMenuItem<ActivationFunction>>(

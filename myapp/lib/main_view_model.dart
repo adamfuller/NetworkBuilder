@@ -1,14 +1,25 @@
 part of app;
 
 class MainViewModel {
+  static const String _e = "2.718281828459045235360287471352";
+  static const Map<ActivationFunction, String> _activationFunctionPythonStrings = {
+    ActivationFunction.leakyRelu: "lambda x: x if x > 0 else 0.1 * x",
+    ActivationFunction.relu: "lambda x: x if x > 0 else 0",
+    ActivationFunction.sigmoid: "lambda x: 1 / (1 + ($_e)**(-x)",
+    ActivationFunction.sigmoidish: "lambda x: 1 / (1 + ($_e)**(-x)",
+    ActivationFunction.tanh: "lambda x: (($_e)**x - ($_e)**(-x))/(($_e)**x + ($_e)**(-x))",
+  };
+
   //
   // Private members
   //
+  int _timerPeriod = 30;
   List<StreamSubscription> _listeners;
-  List<int> _layers = List<int>();
   List<List<double>> _inputsFromText;
   List<List<double>> _outputsFromText;
   Timer _trainingTimer = Timer(Duration(seconds: 0), () {})..cancel();
+
+
 
   //
   // Public Properties
@@ -23,15 +34,51 @@ class MainViewModel {
   TextEditingController networkInputsController = TextEditingController();
   TextEditingController networkOutputsController = TextEditingController();
   bool isValidTrainingData = true;
+  List<List<double>> testOutputs = List<List<double>>();
+  int runCount = 0;
+  // double avgError = 0.0;
 
   //
   // Getters
   //
 
-  String get testOutputString {
-    if (network.testOutputs.isEmpty) return "Empty";
+  double get avgPercentError {
+    double diffSum = 0;
+    double expectedSum = 0;
+    if (_outputsFromText.length != testOutputs.length) return 0.0;
 
-    return network.testOutputs?.fold<String>("", (s, output) {
+    for (int i = 0; i < testOutputs.length; i++) {
+      for (int j = 0; j < testOutputs[i].length; j++) {
+        diffSum += (_outputsFromText[i][j] - testOutputs[i][j]).abs();
+        expectedSum += _outputsFromText[i][j].abs();
+      }
+    }
+
+    return (diffSum / expectedSum) * 100;
+  }
+
+  String get networkPythonFunction {
+    String _norm = _activationFunctionPythonStrings[network.activationFunction];
+    return "def feedForward(x):\n" +
+        "    network = ${network.matrix.toString()}\n" +
+        "    normalize = $_norm\n" +
+        "    output = [1]\n" +
+        "    output.extend(x)\n" +
+        "    for layer in network:\n" +
+        "        nextOutput = [1]\n" +
+        "        for neuron in layer:\n" +
+        "            neuronOutput = 0\n" +
+        "            for i in range(len(output)):\n" +
+        "                neuronOutput += neuron[i]*output[i]\n" +
+        "            nextOutput.append(normalize(neuronOutput))\n" +
+        "        output = nextOutput\n" +
+        "    return output[1:]\n";
+  }
+
+  String get testOutputString {
+    if (testOutputs.isEmpty) return "Empty";
+
+    return testOutputs?.fold<String>("", (s, output) {
       s += "[";
       for (int i = 0; i < output.length; i++) {
         s += output[i].toStringAsFixed(6);
@@ -73,20 +120,20 @@ class MainViewModel {
     // Assign test inputs
     networkInputsController ??= TextEditingController();
     networkInputsController.text = "0, 0\n0, 1\n1, 0\n1, 1\n";
+    // networkInputsController.text = "0\n1\n";
 
     // Assign test outputs
     networkOutputsController ??= TextEditingController();
     networkOutputsController.text = "0\n1\n1\n0";
-
-    // Parse the text from networkInputsController
-    _layers = [2, 5, 4, 5, 1];
-    // Update both
-    _updateTrainingData(wasInputs: true, wasOutputs: true);
+    // networkOutputsController.text = "0\n1\n";
 
     this._trainingTimer?.cancel();
     // isTraining = false;
 
     _assignNetwork();
+
+    // Update both
+    _updateTrainingData(wasInputs: true, wasOutputs: true);
 
     // Feed forward once to test the network
     testPressed();
@@ -100,7 +147,9 @@ class MainViewModel {
 
   void _assignNetwork() {
     this.network = Network(
-      [2, 5, 4, 5, 1], // Default for 3-bit XOR
+      2,
+      1,
+      hiddenLayerSizes: [3], // Default for 3-bit XOR
       activationFunction: ActivationFunction.leakyRelu,
     );
   }
@@ -109,19 +158,22 @@ class MainViewModel {
   void resetNetwork() {
     network.reset();
 
+    runCount = 0;
+
     ///
     /// Copied from test pressed to run data through
     ///
     if (_inputsFromText.isEmpty) _updateTrainingData();
-    network.testOutputs.clear();
+    testOutputs.clear();
     for (List<double> input in _inputsFromText) {
-      network.testOutputs.add(network.forwardPropagation(input));
+      testOutputs.add(network.forwardPropagation(input));
     }
     _feedSampleData();
   }
 
   void saveJsonPressed() {
-    Clipboard.setData(ClipboardData(text: network.prettyJsonString));
+    String s = JsonEncoder.withIndent("    ").convert(network.toJson());
+    Clipboard.setData(ClipboardData(text: s));
     copyJsonButtonText = "Copied";
     onDataChanged();
     Timer(Duration(seconds: 1), () {
@@ -131,7 +183,7 @@ class MainViewModel {
   }
 
   void savePythonPressed() {
-    Clipboard.setData(ClipboardData(text: network.pythonFunction));
+    Clipboard.setData(ClipboardData(text: networkPythonFunction));
     copyPythonButtonText = "Copied";
     onDataChanged();
     Timer(Duration(seconds: 1), () {
@@ -141,7 +193,7 @@ class MainViewModel {
   }
 
   void saveMatrixPressed() {
-    Clipboard.setData(ClipboardData(text: network.matrixString));
+    Clipboard.setData(ClipboardData(text: network.matrix.toString()));
     copyMatrixButtonText = "Copied";
     onDataChanged();
     Timer(Duration(seconds: 1), () {
@@ -156,30 +208,40 @@ class MainViewModel {
   }
 
   void _webTimerFunction(Timer t) {
-    network.testOutputs.clear();
-
     for (int j = 0; j < _outputsFromText.length; j++) {
-      network.testOutputs.add(this.network.forwardPropagation(_inputsFromText[j]));
+      this.network.forwardPropagation(_inputsFromText[j]);
       this.network.backPropagation(_outputsFromText[j]);
+    }
+
+    testOutputs.clear();
+    // Calculate the outputs
+    for (List<double> input in _inputsFromText) {
+      testOutputs.add(network.forwardPropagation(input));
     }
 
     onDataChanged();
   }
 
-  void _timerFunction(Timer t) async {
+  void _timerFunction(Timer t) {
     // Train the network and wait for result
-    Network n = await Network.train(network, _inputsFromText, _outputsFromText);
+    /// TODO: Push training into Isolate
+    // Network n = await Network.train(network, _inputsFromText, _outputsFromText);
+    for (int i = 0; i < _inputsFromText.length; i++) {
+      this.network.forwardPropagation(_inputsFromText[i]);
+      this.network.backPropagation(_outputsFromText[i]);
+    }
+    runCount++;
 
     // If the training failed for whatever reason just exit
-    if (n == null) return;
+    // if (n == null) return;
 
     // Reassign the current network
-    network = n;
+    // network = n;
 
-    network.testOutputs.clear();
+    testOutputs.clear();
     // Calculate the outputs
     for (List<double> input in _inputsFromText) {
-      network.testOutputs.add(network.forwardPropagation(input));
+      testOutputs.add(network.forwardPropagation(input));
     }
 
     onDataChanged();
@@ -188,8 +250,8 @@ class MainViewModel {
   void _toggleTimerTraining() {
     if (!_trainingTimer.isActive) {
       _trainingTimer = Timer.periodic(
-        Duration(milliseconds: 30),
-        kIsWeb ? _webTimerFunction : _timerFunction,
+        Duration(milliseconds: _timerPeriod),
+        _timerFunction,
       );
     } else {
       _trainingTimer.cancel();
@@ -200,17 +262,31 @@ class MainViewModel {
   void testPressed() {
     // Check if the data is there
     if (_inputsFromText.isEmpty) _updateTrainingData();
-    network.testOutputs.clear();
+    testOutputs.clear();
     for (List<double> input in _inputsFromText) {
-      network.testOutputs.add(network.forwardPropagation(input));
+      testOutputs.add(network.forwardPropagation(input));
     }
     onDataChanged();
   }
 
-  void stepPressed() async {
-    Network n = await Network.train(network, _inputsFromText, _outputsFromText);
-    if (n == null) return;
-    this.network = n;
+  void stepPressed() {
+    // Network n = await Network.train(network, _inputsFromText, _outputsFromText);
+    for (int i = 0; i < _inputsFromText.length; i++) {
+      network.forwardPropagation(_inputsFromText[i]);
+      network.backPropagation(_outputsFromText[i]);
+    }
+
+    testOutputs.clear();
+
+    for (List<double> input in _inputsFromText) {
+      testOutputs.add(network.forwardPropagation(input));
+    }
+
+    print(network.matrix);
+
+    runCount++;
+    // if (n == null) return;
+    // this.network = n;
     onDataChanged();
   }
 
@@ -273,13 +349,15 @@ class MainViewModel {
 
   /// Resize a layer and pass test data through to resize weights
   void _resizeLayer(int updateIndex, int newSize) {
-    network.resizeLayer(updateIndex, newSize);
+    /// TODO: FIX THIS
+    network.changeLayerSize(updateIndex, newSize);
 
     _feedSampleData();
   }
 
   /// Remove a layer and pass test data through to resize
   void _removeLayer(int removeIndex) {
+    /// TODO: FIX THIS
     network.removeLayer(removeIndex);
 
     _feedSampleData();
@@ -287,12 +365,12 @@ class MainViewModel {
 
   void _feedSampleData() {
     // Set sampleData count to weight of initial layer
-    int sampleCount = network.layers[0].neurons[0].weights.length - 1;
+    int sampleCount = network.layers[0].weights[0].length - 1;
     // Generate junk sample data
     List<double> sample = List.filled(sampleCount, 0.5);
     // Pass the sample data to correct weights
     network.forwardPropagation(sample);
-    network.runCount = 0;
+    // runCount = 0;
 
     onDataChanged();
   }
@@ -322,6 +400,7 @@ class MainViewModel {
     bool wasInputs = false,
     bool wasOutputs = false,
   }) {
+    isValidTrainingData = true;
     // Make sure there is some data
     if (networkInputsController.text.isEmpty) {
       isValidTrainingData = false;
@@ -341,42 +420,43 @@ class MainViewModel {
     List<List<double>> parsedOutputs = wasOutputs ? _parseDoubleList(networkOutputsController.text) : _outputsFromText;
 
     // if any are null or they don't match they aren't valid
-    if (parsedInputs == null || parsedOutputs == null || parsedInputs?.length != parsedOutputs?.length) {
+    if (parsedInputs == null || parsedOutputs == null) {
       isValidTrainingData = false;
       // onDataChanged();
       // return;
     }
 
     // Make sure all internal lengths match
-    for (int i = 0; i < parsedInputs.length - 1; i++) {
-      if (parsedInputs[i].length != parsedInputs[i + 1].length) {
-        isValidTrainingData = false;
-        // onDataChanged();
-        // return;
-      }
-      if (parsedOutputs[i].length != parsedOutputs[i + 1].length) {
-        isValidTrainingData = false;
-        // onDataChanged();
-        // return;
+    if (parsedInputs.length == parsedOutputs.length) {
+      for (int i = 0; i < parsedInputs.length - 1; i++) {
+        if (parsedInputs[i].length != parsedInputs[i + 1].length) {
+          isValidTrainingData = false;
+          // onDataChanged();
+          // return;
+        }
+        if (parsedOutputs[i].length != parsedOutputs[i + 1].length) {
+          isValidTrainingData = false;
+          // onDataChanged();
+          // return;
+        }
       }
     }
 
-    if(wasInputs) _inputsFromText = parsedInputs;
-    if(wasOutputs) _outputsFromText = parsedOutputs;
+    if (wasInputs && isValidTrainingData) _inputsFromText = parsedInputs;
+    if (wasOutputs && isValidTrainingData) _outputsFromText = parsedOutputs;
 
-    if (wasOutputs && _layers.last != _outputsFromText[0].length) {
-      _layers.last = _outputsFromText[0].length;
-
+    if (wasOutputs && isValidTrainingData && network.layers.last.weights.length != _outputsFromText[0].length) {
       ///
       /// CONSIDER CHANGING LATER
       ///
-      network.layers.last.resize(_outputsFromText[0].length);
-    }
-    if (wasInputs && _layers[0] != _inputsFromText[0].length) {
-      _layers[0] = _inputsFromText[0].length;
+      network.layers.last.resizeOutput(_outputsFromText[0].length);
     }
 
-    isValidTrainingData = true;
+    if (wasInputs && isValidTrainingData && network.layers[0].weights[0].length != _inputsFromText[0].length) {
+      network.layers[0].resizeInput(_inputsFromText[0].length);
+    }
+
+    
     onDataChanged();
   }
 
@@ -402,12 +482,28 @@ class MainViewModel {
     if (neuronCount == null) return;
 
     int insertIndex = (index / 2).floor();
-    List<int> counts = network.hiddenLayerNeuronCount;
-    counts.insert(insertIndex, neuronCount);
 
     // Insert a layer of size neuronCount with insertIndex Weights
-    network.insetLayer(insertIndex, Layer(counts[insertIndex], neuronCount));
+    network.insertLayer(insertIndex, neuronCount);
 
     _feedSampleData();
+  }
+
+  void loadInputsFromFile() async {
+    File f = await FilePicker.getFile(fileExtension: ".csv");
+    f.readAsString().then((text) {
+      networkInputsController.text = text;
+      // _updateTrainingData(wasInputs: true);
+      onDataChanged();
+    });
+  }
+
+  void loadOutputsFromFile() async {
+    File f = await FilePicker.getFile(fileExtension: ".csv");
+    f.readAsString().then((text) {
+      networkOutputsController.text = text;
+      onDataChanged();
+      // _updateTrainingData(wasOutputs: true);
+    });
   }
 }
