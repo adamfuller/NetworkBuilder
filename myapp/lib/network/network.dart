@@ -116,6 +116,11 @@ class Network {
   /// The layer at `index` will be adjusted
   /// to have `neuronCount` sets of weights
   void changeLayerSize(int index, int neuronCount) {
+    if (neuronCount == 0){
+      // Remove the layer instead
+      removeLayer(index);
+      return;
+    }
     // Change the specified layer's output count
     layers[index].resizeOutput(neuronCount);
 

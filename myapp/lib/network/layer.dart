@@ -133,19 +133,17 @@ class Layer {
   /// Changes the number of lists in weights to match outputSize
   void resizeOutput(int outputSize) {
     if (outputSize > _weights.length) {
-      // Add some weights
-      for (int i = 0; i < (outputSize - _weights.length); i++) {
-        _weights.add(
-          List.generate(
-            _weights.last.length,
-            (i) => (2 * Network.r.nextDouble() - 1),
-          ),
-        );
-        // this.weightAdj.add([]);
-      }
+      // Regenerate weights
+      _weights = List.generate(
+        outputSize,
+        (index) => List.generate(
+          _weights.last.length,
+          (i) => (2 * Network.r.nextDouble() - 1),
+        ),
+      );
     } else {
       _weights = _weights.take(outputSize).toList();
-      // this.weightAdj = this.weightAdj.take(outputSize).toList();
+      this.weightAdj = this.weightAdj.take(outputSize).toList();
     }
     weightAdj = List<List<double>>(outputSize);
     _deltas = List<double>(outputSize);
@@ -165,7 +163,7 @@ class Layer {
     // Feed the input through the neurons
     _outputs = List<double>(_weights.length);
     double output;
-    if (_inputs.length != _weights[0].length){
+    if (_inputs.length != _weights[0].length) {
       print("DATA DOESN'T MATCH");
     }
     for (int neuronIndex = 0; neuronIndex < _weights.length; neuronIndex++) {

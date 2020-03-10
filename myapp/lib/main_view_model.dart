@@ -19,8 +19,6 @@ class MainViewModel {
   List<List<double>> _outputsFromText;
   Timer _trainingTimer = Timer(Duration(seconds: 0), () {})..cancel();
 
-
-
   //
   // Public Properties
   //
@@ -149,7 +147,7 @@ class MainViewModel {
     this.network = Network(
       2,
       1,
-      hiddenLayerSizes: [3], // Default for 3-bit XOR
+      hiddenLayerSizes: [5, 4, 5], // Default for 3-bit XOR
       activationFunction: ActivationFunction.leakyRelu,
     );
   }
@@ -456,7 +454,6 @@ class MainViewModel {
       network.layers[0].resizeInput(_inputsFromText[0].length);
     }
 
-    
     onDataChanged();
   }
 

@@ -114,14 +114,6 @@ class _MainViewState extends State<MainView> {
                 ],
               ),
             ),
-            // Flexible(
-            //   child: Column(
-            //     mainAxisSize: MainAxisSize.min,
-            //     children: <Widget>[
-            //       Text("Hey"),
-            //     ],
-            //   ),
-            // ),
           ],
         )
       ],
@@ -129,13 +121,8 @@ class _MainViewState extends State<MainView> {
   }
 
   Widget _getAverageError() {
-    /// TODO: FIX THIS
-    // return Text(
-    //   "This will be fixed ( show % error )",
-    //   textAlign: TextAlign.center,
-    // );
     return Text(
-      "Average % Error: ${vm.avgPercentError}",
+      "Average % Error: ${vm.avgPercentError.toStringAsFixed(6)}",
       textAlign: TextAlign.center,
     );
   }
