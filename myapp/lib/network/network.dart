@@ -84,7 +84,7 @@ class Network {
   void removeLayer(int index) {
     if (index > 0) {
       // The earlier layer will have to resize it's output
-      layers[index + 1].resizeInput(layers[index - 1].weights.length - 1);
+      layers[index + 1].resizeInput(layers[index - 1].weights.length);
     } else {
       // Make the new input layer accept the right sized data
       layers[index + 1].resizeInput(layers[0].weights[0].length - 1);
