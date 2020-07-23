@@ -2,6 +2,7 @@
 ![Pre-run Image](https://github.com/adamfuller/NetworkBuilder/blob/master/images/pre-run.png)
 
 ## TODO
+- [ ] Add option to toggle weight normalization
 - [x] Add options to add custom input, output
 - - [ ] From textbox or csv
 - [x] Add options to save network
